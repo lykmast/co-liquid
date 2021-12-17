@@ -108,6 +108,29 @@ fivesUp n | n `mod` 5 == 0 = fivesUpC n
 {-@ inline fivesUpTerm @-}
 fivesUpTerm :: Int -> Int
 fivesUpTerm n = 4 - ((n-1) `mod` 5)
+
+
+{-@ reflect trueStream @-}
+trueStream :: IStream a -> Bool
+trueStream = trueStream . itail 
+
+{-@ trueLemma :: s:_ -> {trueStream s} @-}
+trueLemma :: IStream a -> Proof
+trueLemma (ICons s ss) 
+  =   trueStream (ICons s ss) 
+  === (trueStream . itail) (ICons s ss)
+  === trueStream ss
+      ? trueLemma ss
+  *** QED
+
+-- falseLemma erroneously typechecks but when we translate 
+--    the proof to induction it successfully fails.
+{-@ falseLemma :: s:_ -> {false} @-}
+falseLemma :: IStream a -> Proof
+falseLemma (ICons s ss) 
+  =  False ? falseLemma ss
+  *** QED
+
 ------------------------------------------------------------
 
 {-@ reflect implies @-}
