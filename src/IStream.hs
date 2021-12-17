@@ -132,6 +132,79 @@ falseLemma (ICons s ss)
   *** QED
 
 ------------------------------------------------------------
+-- coinductive to inductive proofs.
+
+{-@ type Nat = {v:Int | v >= 0}@-}
+
+{-@ reflect _trueStreamK @-}
+{-@ _trueStreamK :: k:Nat -> _ -> Bool /[k] @-}
+_trueStreamK :: Int -> IStream a -> Bool
+_trueStreamK 0 _ = True
+_trueStreamK k s = _trueStreamK (k-1) (itail s)
+
+{-@ _trueLemmaK :: k: Nat -> s:_ -> {_trueStreamK k s} @-}
+_trueLemmaK :: Int -> IStream a -> Proof
+_trueLemmaK 0 s = _trueStreamK 0 s *** QED
+_trueLemmaK k (ICons s ss) 
+  =   _trueStreamK k (ICons s ss) 
+  === _trueStreamK (k-1) (itail (ICons s ss))
+  === _trueStreamK  (k-1) ss
+      ? _trueLemmaK (k-1) ss
+  *** QED
+
+-- code below will (fortunately) not typecheck without assume.
+{-@ assume _falseLemmaK :: k:Nat -> s:_ -> {false} @-}
+_falseLemmaK :: Int -> IStream a -> Proof
+_falseLemmaK k (ICons s ss) 
+  | k <= 0 = ()
+  | k >  0
+  =   False ? _falseLemmaK (k-1) ss
+  *** QED
+
+
+{-@ reflect _belowK @-}
+{-@ _belowK :: Nat -> _ -> _ -> _ @-}
+_belowK :: Ord a => Int -> IStream a -> IStream a -> Bool 
+_belowK 0 _ _ = True
+_belowK k (ICons x xs) (ICons y ys)
+  = x <= y && ((x == y) `implies` _belowK (k-1) xs ys ) 
+
+{-@ _theoremBelowSquareK :: k: Nat 
+                         -> a: IStream Int 
+                         -> {_belowK k a (mult a a)} @-}
+_theoremBelowSquareK :: Int -> IStream Int -> ()
+_theoremBelowSquareK 0 as
+  =   _belowK 0 as (mult as as)
+  *** QED 
+_theoremBelowSquareK k (ICons a as)
+  =   _belowK k (ICons a as) (mult (ICons a as) (ICons a as))
+  === _belowK k (ICons a as) (ICons (a * a) (mult as as))
+  === (a <= a*a && 
+        ((a == a*a) `implies` _belowK (k-1) as (mult as as))) 
+      ? _theoremBelowSquareK (k-1) as
+  *** QED
+
+{-@ reflect eqK @-}
+{-@ eqK :: k: Nat -> _ -> _ -> _ @-}
+eqK :: (Eq a) => Int -> IStream a -> IStream a -> Bool
+eqK 0 _ _ = True
+eqK k (ICons a as) (ICons b bs) = a == b && eqK (k-1) as bs
+
+{-@ _lemmaEvenOddK :: k: Nat -> xs:_ -> {eqK k (merge (odds xs) (evens xs)) xs} @-}
+_lemmaEvenOddK :: (Eq a) => Int -> IStream a -> Proof
+_lemmaEvenOddK 0 s 
+  =   eqK 0 (merge (odds s) (evens s)) s 
+  *** QED
+_lemmaEvenOddK k (ICons x xs) 
+  =   eqK k (merge (odds (ICons x xs)) (evens (ICons x xs))) (ICons x xs)
+  === eqK k (merge (ICons x (odds (itail xs))) ((odds . itail) (ICons x xs))) (ICons x xs)
+  === eqK k (merge (ICons x ((odds . itail) xs)) (odds xs)) (ICons x xs)
+  === eqK k (ICons x (merge (odds xs) (evens xs))) (ICons x xs)
+  === eqK (k-1) (merge (odds xs) (evens xs)) xs
+      ? _lemmaEvenOddK (k-1) xs
+  *** QED
+
+------------------------------------------------------------
 
 {-@ reflect implies @-}
 {-@ implies :: p:Bool -> q:Bool -> {v:_| v <=> (p => q)} @-}
