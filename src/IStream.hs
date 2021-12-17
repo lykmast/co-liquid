@@ -70,10 +70,53 @@ lemmaEvenOdd (ICons x xs)
   === ICons x xs
   *** QED
 
------------------------------------------------
+------------------------------------------------------------
+-- Examples below are not complete: We still need lazy to make
+--   them pass. In Dafny the parts marked lazy would be exempt
+--   from termination checks as "co-recursive calls".
+
+{-@ lazy up @-}
+{-@ up :: n:_ -> IStream {v:_| v >= n} @-}
+up :: Int -> IStream Int
+up n = n `ICons` up (n+1)
+
+-- this is not checked for termination in dafny.
+{-@ lazy fivesUpC @-}
+{-@ fivesUpC :: n:{v:_| v mod 5 = 0} -> IStream {v:_ | v >= n}  @-}
+fivesUpC :: Int -> IStream Int
+fivesUpC n = n `ICons` fivesUpI (n+1)
+
+-- this should be checked, but lazy prevents it.
+-- how this *probably* works in dafny:
+--   - n mod 5 /=0 ==> fivesUpTerm (n+1) < fivesUpTerm n
+--     (see theoremFivesUpTerm below).
+--   - The important part is that only fivesUpI is checked and
+--     this established the precondition n mod 5 /= 0 for the
+--     termination check.
+{-@ fivesUpI :: n:{v:_| v mod 5 /= 0} 
+             -> IStream {v:_ | v >= n} / [fivesUpTerm n]  @-}
+fivesUpI :: Int -> IStream Int
+fivesUpI n | np1 `mod` 5 /= 0 = fivesUpI np1 
+           | otherwise        = fivesUpC np1
+             where np1 = n + 1
+
+{-@ fivesUp :: n:_ -> IStream {v:_ | v >= n} @-}
+fivesUp :: Int -> IStream Int
+fivesUp n | n `mod` 5 == 0 = fivesUpC n
+          | otherwise      = fivesUpI n
+
+{-@ inline fivesUpTerm @-}
+fivesUpTerm :: Int -> Int
+fivesUpTerm n = 4 - ((n-1) `mod` 5)
+------------------------------------------------------------
 
 {-@ reflect implies @-}
 {-@ implies :: p:Bool -> q:Bool -> {v:_| v <=> (p => q)} @-}
 implies False _ = True
 implies _ True = True
 implies _ _ = False
+
+{-@ theoremFivesUpTerm :: n:{n:_| n mod 5 /=0} 
+                       -> {fivesUpTerm (n+1) < fivesUpTerm n} @-}
+theoremFivesUpTerm :: Int -> Proof
+theoremFivesUpTerm _ = ()
