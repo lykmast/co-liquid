@@ -25,7 +25,7 @@ appendIsAssociative Nil ys zs
 appendIsAssociative xxs@(Cons x xs) ys zs
   =   (xxs `append` ys) `append` zs
   === Cons x (xs `append` ys) `append` zs
-      ? appendIsAssociative xs ys zs
+    ? appendIsAssociative xs ys zs
   === xxs `append` (ys `append` zs)
   *** QED 
 
@@ -46,7 +46,7 @@ eqK k (Cons _ _) Nil = False
 
 {-@ lemmaSameEqK :: k:Nat -> xs:_ -> {eqK k xs xs } @-}
 lemmaSameEqK :: (Eq a) => Int -> LList a -> Proof
-lemmaSameEqK 0 xs     = eqK 0 xs xs  *** QED 
+lemmaSameEqK 0 xs     = eqK 0 xs xs *** QED 
 lemmaSameEqK k xs@Nil = eqK k xs xs *** QED
 lemmaSameEqK k xxs@(Cons x xs)
   =   eqK k xxs xxs
@@ -92,10 +92,3 @@ _appendIsAssociativeK k xxs@(Cons x xs) ys zs
 not :: Bool -> Bool
 not False = True
 not True  = False
-
-{-@ die :: {v:String|false} -> a @-}
-die = error
-
-{-@ lAssert :: {v:_|v} -> a -> a @-}
-lAssert True x = x
-lAssert False _ = die "yikes, assertion fails!"

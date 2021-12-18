@@ -43,7 +43,7 @@ theoremBelowMult (ICons a as)
   =   below (ICons a as) (mult (ICons a as) (ICons a as))
   === below (ICons a as) (ICons (a * a) (mult as as))
   === (a <= a*a && ( (a == a*a) `implies` below as (mult as as))) 
-      ? theoremBelowMult as
+    ? theoremBelowMult as
   *** QED
 
 
@@ -66,7 +66,7 @@ lemmaEvenOdd (ICons x xs)
   === merge (ICons x (odds (itail xs))) ((odds . itail) (ICons x xs))
   === merge (ICons x ((odds . itail) xs)) (odds xs)
   === ICons x (merge (odds xs) (evens xs))
-      ? lemmaEvenOdd xs
+    ? lemmaEvenOdd xs
   === ICons x xs
   *** QED
 
@@ -91,7 +91,7 @@ fivesUpC n = n `ICons` fivesUpI (n+1)
 --   - n mod 5 /=0 ==> fivesUpTerm (n+1) < fivesUpTerm n
 --     (see theoremFivesUpTerm below).
 --   - The important part is that only fivesUpI is checked and
---     this established the precondition n mod 5 /= 0 for the
+--     this establishes the precondition n mod 5 /= 0 for the
 --     termination check.
 {-@ fivesUpI :: n:{v:_| v mod 5 /= 0} 
              -> IStream {v:_ | v >= n} / [fivesUpTerm n]  @-}
@@ -120,7 +120,7 @@ trueLemma (ICons s ss)
   =   trueStream (ICons s ss) 
   === (trueStream . itail) (ICons s ss)
   === trueStream ss
-      ? trueLemma ss
+    ? trueLemma ss
   *** QED
 
 -- falseLemma erroneously typechecks but when we translate 
@@ -149,7 +149,7 @@ _trueLemmaK k (ICons s ss)
   =   _trueStreamK k (ICons s ss) 
   === _trueStreamK (k-1) (itail (ICons s ss))
   === _trueStreamK  (k-1) ss
-      ? _trueLemmaK (k-1) ss
+    ? _trueLemmaK (k-1) ss
   *** QED
 
 -- code below will (fortunately) not typecheck without assume.
@@ -181,7 +181,7 @@ _theoremBelowSquareK k (ICons a as)
   === _belowK k (ICons a as) (ICons (a * a) (mult as as))
   === (a <= a*a && 
         ((a == a*a) `implies` _belowK (k-1) as (mult as as))) 
-      ? _theoremBelowSquareK (k-1) as
+    ? _theoremBelowSquareK (k-1) as
   *** QED
 
 {-@ reflect eqK @-}
@@ -201,7 +201,7 @@ _lemmaEvenOddK k (ICons x xs)
   === eqK k (merge (ICons x ((odds . itail) xs)) (odds xs)) (ICons x xs)
   === eqK k (ICons x (merge (odds xs) (evens xs))) (ICons x xs)
   === eqK (k-1) (merge (odds xs) (evens xs)) xs
-      ? _lemmaEvenOddK (k-1) xs
+    ? _lemmaEvenOddK (k-1) xs
   *** QED
 
 ------------------------------------------------------------
