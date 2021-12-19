@@ -1,0 +1,30 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.34.4.
+--
+-- see: https://github.com/sol/hpack
+
+name:           co-liquid
+version:        0.0.0
+license:        MIT
+license-file:   LICENSE
+build-type:     Simple
+extra-source-files:
+    README.md
+
+library
+  exposed-modules:
+      IStream
+      LList
+      Paulson
+      Streams
+  other-modules:
+      Paths_co_liquid
+  hs-source-dirs:
+      src
+  ghc-options: -fplugin=LiquidHaskell
+  build-depends:
+      liquid-base
+    , liquid-prelude
+    , liquidhaskell
+  default-language: Haskell2010
