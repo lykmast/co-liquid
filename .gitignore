@@ -23,4 +23,3 @@ cabal.project.local~
 .ghc.environment.*
 *.swp
 .liquid/
-stack*.yaml.lock
