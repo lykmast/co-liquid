@@ -55,7 +55,7 @@ eqK k (Cons _ _) Nil = False
 
 {-@ lemmaEqKReflexive :: k:Nat -> xs:_ -> {eqK k xs xs } @-}
 lemmaEqKReflexive :: (Eq a) => Int -> LList a -> Proof
-lemmaEqKReflexive 0 xs     = eqK 0 xs xs  *** QED 
+lemmaEqKReflexive 0 xs     = eqK 0 xs xs *** QED 
 lemmaEqKReflexive k xs@Nil = eqK k xs xs *** QED
 lemmaEqKReflexive k xxs@(Cons x xs)
   =   eqK k xxs xxs

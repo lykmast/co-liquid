@@ -65,10 +65,11 @@ theoremLmapLinear f xs ys = ()
 -- coinductive to inductive proofs.
 
 {-@ _theoremLmapAfterK :: k:Nat 
-                             -> f:_ 
-                             -> g:_ 
-                             -> xs:_ 
-                             -> {eqK k (lmap (f . g) xs) (lmap f (lmap g xs))}
+                       -> f:_ 
+                       -> g:_ 
+                       -> xs:_ 
+                       -> {eqK k (lmap (f . g) xs) 
+                                 (lmap f (lmap g xs))}
 @-}
 _theoremLmapAfterK 
     :: (Eq a, Eq b, Eq c)
@@ -120,7 +121,13 @@ _theoremLmapIteratesK k f m
                         -> ys:{ys:_| eqK k xs ys} 
                         -> {eqK k (lmap f xs) (lmap f ys)}  
 @-}
-_theoremLmapLinearK :: (Eq a) => Int -> (a -> a) -> LList a -> LList a -> Proof
+_theoremLmapLinearK
+    :: Eq a
+    => Int
+    -> (a -> a) 
+    -> LList a
+    -> LList a
+    -> Proof
 _theoremLmapLinearK 0 f xs ys
   = eqK 0 (lmap f xs) (lmap f ys) *** QED
 _theoremLmapLinearK k f Nil Nil
