@@ -13,7 +13,7 @@ data LList a = Cons a (LList a) | Nil
 Nil `append` ys         = ys
 (Cons x xs) `append` ys = Cons x (xs `append` ys)
 
-{-@ appendIsAssociative :: xs:_ -> ys:_ -> zs:_ 
+{-@ appendIsAssociative :: xs:_ -> ys:_ -> zs:_
      -> {append (append xs ys) zs = append xs (append ys zs)}  @-}
 appendIsAssociative :: LList a -> LList a -> LList a -> Proof
 appendIsAssociative Nil ys zs
@@ -27,7 +27,7 @@ appendIsAssociative xxs@(Cons x xs) ys zs
   === Cons x (xs `append` ys) `append` zs
     ? appendIsAssociative xs ys zs
   === xxs `append` (ys `append` zs)
-  *** QED 
+  *** QED
 
 {-@ reflect isInfiniteLList @-}
 isInfiniteLList :: LList a -> Bool
@@ -55,7 +55,7 @@ eqK k (Cons _ _) Nil = False
 
 {-@ lemmaEqKReflexive :: k:Nat -> xs:_ -> {eqK k xs xs } @-}
 lemmaEqKReflexive :: (Eq a) => Int -> LList a -> Proof
-lemmaEqKReflexive 0 xs     = eqK 0 xs xs *** QED 
+lemmaEqKReflexive 0 xs     = eqK 0 xs xs *** QED
 lemmaEqKReflexive k xs@Nil = eqK k xs xs *** QED
 lemmaEqKReflexive k xxs@(Cons x xs)
   =   eqK k xxs xxs
@@ -63,7 +63,7 @@ lemmaEqKReflexive k xxs@(Cons x xs)
   *** QED
 
 {-@ lemmaEqKCommutative :: k:Nat -> xs:_ -> ys:_
-                        -> {eqK k xs ys = eqK k ys xs } 
+                        -> {eqK k xs ys = eqK k ys xs }
 @-}
 lemmaEqKCommutative :: (Eq a) => Int -> LList a -> LList a -> Proof
 lemmaEqKCommutative 0 xs ys
@@ -87,12 +87,12 @@ lemmaEqKCommutative k xs ys
   === eqK k ys xs
   *** QED
 
-{-@ lemmaEqKTransitive :: k:Nat -> xs:_ 
-                       -> ys:{ys:_| eqK k xs ys} 
-                       -> zs:{zs:_| eqK k ys zs} 
-                       -> {eqK k xs zs} 
+{-@ lemmaEqKTransitive :: k:Nat -> xs:_
+                       -> ys:{ys:_| eqK k xs ys}
+                       -> zs:{zs:_| eqK k ys zs}
+                       -> {eqK k xs zs}
 @-}
-lemmaEqKTransitive 
+lemmaEqKTransitive
     :: (Eq a)
     => Int
     -> LList a
@@ -116,12 +116,12 @@ lemmaEqKTransitive k xxs@(Cons x xs) yys@(Cons y ys) zzs@(Cons z zs)
   *** QED
 lemmaEqKTransitive k xs ys zs = (eqK k xs ys && eqK k ys zs) *** QED
 
-    
+
 ---------------------------------------------------------
 -- coinductive to inductive proofs.
 
-{-@ _appendIsAssociativeK :: k: Nat -> xs:_ -> ys:_ -> zs:_ 
-     -> {eqK k (append (append xs ys) zs) 
+{-@ _appendIsAssociativeK :: k: Nat -> xs:_ -> ys:_ -> zs:_
+     -> {eqK k (append (append xs ys) zs)
                (append xs (append ys zs))}
 @-}
 _appendIsAssociativeK
@@ -132,25 +132,25 @@ _appendIsAssociativeK
     -> LList a
     -> Proof
 _appendIsAssociativeK 0 xs ys zs
-  =   eqK 0 ((xs `append` ys) `append` zs) 
+  =   eqK 0 ((xs `append` ys) `append` zs)
              (xs `append` (ys `append` zs))
   *** QED
 _appendIsAssociativeK k Nil ys zs
-  =   eqK k ((Nil `append` ys) `append` zs) 
+  =   eqK k ((Nil `append` ys) `append` zs)
              (Nil `append` (ys `append` zs))
   === eqK k (ys `append` zs) (Nil `append` (ys `append` zs))
-  === eqK k (ys `append` zs) (ys `append` zs) 
-    ? lemmaEqKReflexive k (ys `append` zs) 
+  === eqK k (ys `append` zs) (ys `append` zs)
+    ? lemmaEqKReflexive k (ys `append` zs)
   *** QED
 
 _appendIsAssociativeK k xxs@(Cons x xs) ys zs
-  =   eqK k ((xxs `append` ys) `append` zs) 
+  =   eqK k ((xxs `append` ys) `append` zs)
              (xxs `append` (ys `append` zs))
   === eqK k (Cons x (xs `append` ys) `append` zs)
             (Cons x xs `append` (ys `append` zs))
   === eqK k (Cons x (xs `append` ys `append` zs))
             (Cons x (xs `append` (ys `append` zs)))
-  -- Mind that the rhs must also advance so that 
+  -- Mind that the rhs must also advance so that
   --    a Cons is available at both sides and eqK can be applied.
   -- The line below is automatically derived.
   -- === (x == x && eqK (k-1) (xs `append`  ys `append` zs)
