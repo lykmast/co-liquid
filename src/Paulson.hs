@@ -175,3 +175,38 @@ _theoremLmapIteratesK' k f m
     ? _theoremLmapIteratesK (k-1) f m
   *** QED
 
+
+
+{-@ _theoremLmapAppendK :: k:Nat
+                        -> f:_
+                        -> m:_
+                        -> n:_
+                        -> {eqK k (lmap f (append m n))
+                                  (append (lmap f m) (lmap f n)) }
+@-}
+_theoremLmapAppendK
+    :: Eq b
+    => Int
+    -> (a -> b)
+    -> LList a
+    -> LList a
+    -> Proof
+_theoremLmapAppendK 0 f m n
+  =   eqK 0 (lmap f (append m n)) (lmap f m `append` lmap f n)
+  *** QED
+_theoremLmapAppendK k f m@Nil n
+  =   eqK k (lmap f (append m n))
+            (lmap f m `append` lmap f n)
+  === eqK k (lmap f n) (lmap f n)
+    ? lemmaEqKReflexive k (lmap f n)
+  *** QED
+_theoremLmapAppendK k f mms@(Cons m ms) n
+  =   eqK k (lmap f (append mms n))
+            (lmap f mms `append` lmap f n)
+  === eqK k (lmap f (m `Cons` append ms n))
+            (Cons (f m) (lmap f ms) `append` lmap f n)
+  === eqK k (f m `Cons` lmap f (append ms n))
+            (f m `Cons` append (lmap f ms) (lmap f n))
+    ? _theoremLmapAppendK (k-1) f ms n
+  *** QED
+
