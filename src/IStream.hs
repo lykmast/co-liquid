@@ -131,6 +131,18 @@ falseLemma (ICons s ss)
   =  False ? falseLemma ss
   *** QED
 
+
+{-@ reflect irepeat @-}
+{-@ lazy irepeat @-}
+irepeat x = x `ICons` irepeat x
+
+{-@ lemmaRepeat :: x:_ -> {itail (irepeat x) = irepeat x} @-}
+lemmaRepeat x
+  =   itail (irepeat x)
+  === itail (x `ICons` irepeat x)
+  === irepeat x
+  *** QED
+
 ---------------------------------------------------------
 -- eqK properties for IStreams.
 
@@ -256,6 +268,17 @@ _lemmaEvenOddK k (ICons x xs)
     ? _lemmaEvenOddK (k-1) xs
   *** QED
 
+{-@ _lemmaRepeatK :: k:Nat -> x:_ -> {eqK k (itail (irepeat x)) (irepeat x)} @-}
+_lemmaRepeatK k x | k == 0
+  =   eqK 0 (itail xs) xs
+  *** QED
+  | otherwise
+  =   eqK k (itail xs) xs
+  === eqK k (itail (x `ICons` xs)) xs
+  === eqK k xs xs
+    ? lemmaEqKReflexive k xs
+  *** QED
+  where xs = irepeat x
 ------------------------------------------------------------
 
 {-@ reflect implies @-}
