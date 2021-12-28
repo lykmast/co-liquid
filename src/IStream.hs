@@ -131,6 +131,64 @@ falseLemma (ICons s ss)
   =  False ? falseLemma ss
   *** QED
 
+---------------------------------------------------------
+-- eqK properties for IStreams.
+
+{-@ reflect eqK @-}
+{-@ eqK :: k: Nat -> _ -> _ -> _ @-}
+eqK :: (Eq a) => Int -> IStream a -> IStream a -> Bool
+eqK 0 _ _ = True
+eqK k (ICons a as) (ICons b bs) = a == b && eqK (k-1) as bs
+
+{-@ lemmaEqKReflexive :: k:Nat -> xs:_ -> {eqK k xs xs } @-}
+lemmaEqKReflexive :: (Eq a) => Int -> IStream a -> Proof
+lemmaEqKReflexive 0 xs     = eqK 0 xs xs *** QED
+lemmaEqKReflexive k xxs@(ICons x xs)
+  =   eqK k xxs xxs
+  === ((x == x) && eqK (k-1) xs xs) ? lemmaEqKReflexive (k-1) xs
+  *** QED
+
+{-@ lemmaEqKCommutative :: k:Nat -> xs:_ -> ys:_
+                        -> {eqK k xs ys = eqK k ys xs }
+@-}
+lemmaEqKCommutative :: (Eq a) => Int -> IStream a -> IStream a -> Proof
+lemmaEqKCommutative 0 xs ys
+  =   eqK 0 xs ys
+  === True
+  === eqK 0 ys xs
+  *** QED
+lemmaEqKCommutative k xxs@(ICons x xs) yys@(ICons y ys)
+  =   eqK k xxs yys
+  === ((x == y) && eqK (k-1) xs ys)
+    ? lemmaEqKCommutative (k-1) xs ys
+  === ((y == x) && eqK (k-1) ys xs)
+  === eqK k yys xxs
+  *** QED
+
+{-@ lemmaEqKTransitive :: k:Nat -> xs:_
+                       -> ys:{ys:_| eqK k xs ys}
+                       -> zs:{zs:_| eqK k ys zs}
+                       -> {eqK k xs zs}
+@-}
+lemmaEqKTransitive
+    :: (Eq a)
+    => Int
+    -> IStream a
+    -> IStream a
+    -> IStream a
+    -> Proof
+lemmaEqKTransitive 0 xs ys zs
+  =   eqK 0 xs zs
+  === True
+  *** QED
+lemmaEqKTransitive k xxs@(ICons x xs) yys@(ICons y ys) zzs@(ICons z zs)
+  =   (eqK k xxs yys && eqK k yys zzs)
+  === ((x == y) && eqK (k-1) xs ys && (y==z) && eqK (k-1) ys zs)
+    ? lemmaEqKTransitive (k-1) xs ys zs
+  === ((x == z) && eqK (k-1) xs zs)
+  === eqK k xxs zzs
+  *** QED
+
 ------------------------------------------------------------
 -- coinductive to inductive proofs.
 
@@ -183,12 +241,6 @@ _theoremBelowSquareK k (ICons a as)
         ((a == a*a) `implies` _belowK (k-1) as (mult as as)))
     ? _theoremBelowSquareK (k-1) as
   *** QED
-
-{-@ reflect eqK @-}
-{-@ eqK :: k: Nat -> _ -> _ -> _ @-}
-eqK :: (Eq a) => Int -> IStream a -> IStream a -> Bool
-eqK 0 _ _ = True
-eqK k (ICons a as) (ICons b bs) = a == b && eqK (k-1) as bs
 
 {-@ _lemmaEvenOddK :: k: Nat -> xs:_ -> {eqK k (merge (odds xs) (evens xs)) xs} @-}
 _lemmaEvenOddK :: (Eq a) => Int -> IStream a -> Proof
