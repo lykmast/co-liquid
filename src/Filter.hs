@@ -10,13 +10,19 @@ module Filter where
 
 import IStream
 import Language.Haskell.Liquid.ProofCombinators
+import Prelude hiding(filter)
 
+{-@ reflect tailN @-}
 {-@ tailN :: Nat -> _ -> _ @-}
 tailN :: Int -> IStream a -> IStream a
 tailN n s
   | n == 0    = s
   | otherwise = tailN (n-1) (itail s)
 
+{-@ reflect headN @-}
+{-@ headN :: Nat -> _ -> _ @-}
+headN :: Int -> IStream a -> a
+headN n = ihead . tailN n
 {-@ reflect mem @-}
 mem :: Eq a => a -> IStream a -> Bool
 mem v (ICons x xs) = x == v || mem v xs
@@ -68,6 +74,16 @@ isAnother p (ICons x xs) = p x || isAnother p xs
 alwaysAnother :: Pred a -> IStream a -> Bool
 alwaysAnother p xxs@(ICons x xs) = isAnother p xxs && alwaysAnother p xs
 
+{-@ lemmaTailAlwaysAnother :: p:_
+                           -> {xs:_| alwaysAnother p xs}
+                           -> {alwaysAnother p (itail xs)}
+@-}
+lemmaTailAlwaysAnother :: Pred a -> IStream a -> Proof
+lemmaTailAlwaysAnother p xxs@(ICons x xs)
+  =   alwaysAnother p xxs
+  === alwaysAnother p xs
+  *** QED
+
 {-@ lemmaAllImpliesAlwaysAnother :: p:_
                                  -> {xs:_| allP p xs}
                                  -> {alwaysAnother p xs}
@@ -80,6 +96,134 @@ lemmaAllImpliesAlwaysAnother p xxs@(ICons x xs)
     ? lemmaAllImpliesAlwaysAnother p xs
   -- === (isAnother p xxs && alwaysAnother p xs)
   === alwaysAnother p xxs
+  *** QED
+
+{-@ reflect next @-}
+{-@ next :: p:_
+         -> xs:_
+         -> Nat @-}-- {n:Nat| p (headN n xs) }@-}
+next :: Pred a -> IStream a -> Int
+next p xxs@(ICons x xs) | p x       = 0
+                        | otherwise = 1 + next p xs
+
+
+{-@ lemmaNextIsP :: p:_
+                 -> {xs:_| alwaysAnother p xs}
+                 -> {p (headN (next p xs) xs)}
+@-}
+lemmaNextIsP :: Pred a -> IStream a -> Proof
+lemmaNextIsP p xxs@(ICons x xs)
+  | p x
+  =   p (headN (next p xxs) xxs)
+  === p (headN 0 xxs)
+  === p ((ihead . tailN 0) xxs)
+  *** QED
+  | otherwise
+  =   p (headN (next p xxs) xxs)
+  === p (headN (1 + next p xs) xxs)
+  === p ((ihead . tailN (1 + next p xs)) xxs)
+  === p ((ihead . tailN (next p xs)) xs)
+  === p (headN (next p xs) xs)
+    ? lemmaTailAlwaysAnother p xxs
+    ? lemmaNextIsP p xs
+  *** QED
+
+{-@ lemmaNoSmallerP :: p:_
+                    -> s:_
+                    -> {n:Nat| n < next p s}
+                    -> {not (p (headN n s))}
+@-}
+lemmaNoSmallerP :: Pred a -> IStream a -> Int -> Proof
+lemmaNoSmallerP p xxs@(ICons x xs) n
+  | next p xxs == 0 = () --false precondition
+  | n == 0
+  =   not (p (headN n xxs))
+  === not (p ((ihead . tailN n) xxs))
+  -- === not (p x)
+  -- === next p xxs /= 0
+  *** QED
+  | otherwise
+  =   not (p (headN n xxs))
+  === not (p ((ihead . tailN n) xxs))
+  === not (p ((ihead . tailN (n-1)) xs))
+  === not (p (headN (n-1) xs))
+    ? lemmaNoSmallerP p xs (n-1)
+  *** QED
+
+{-@ nextLemma :: p:_
+              -> {xs:_| not (p (ihead xs)) }
+              -> {next p (itail xs) >= 0 && next p xs > next p (itail xs)}
+@-}
+nextLemma :: Pred a -> IStream a -> Proof
+nextLemma p xxs@(ICons _ xs)
+  =   next p xxs    > next p xs
+  === 1 + next p xs > next p xs
+  *** QED
+
+
+-- Here we have to mark lazy. In the commented version below,
+--   we prove termination for the recursive branch but LH does
+--   not yet recognise corecursion.
+-- Also the commented version uses some helper lemmas (to prove
+--   termination and refinement properties) which cannot (?) be
+--   reflected.
+
+{-@ lazy filter @-}
+{-@ reflect filter @-}
+{-@ filter :: p:_ -> xs:_ -> _ @-}
+filter :: Pred a -> IStream a -> IStream a
+filter p xxs | p x       = x `ICons` filter p xs
+             | otherwise = filter p xs
+             where x  = ihead xxs
+                   xs = itail xxs
+
+-- {-@ filter :: p:_
+--            -> {xs:_|alwaysAnother p xs}
+--            -> {v:_| allP p v }
+--            / [next p xs]
+-- @-}
+-- filter :: Pred a -> IStream a -> IStream a
+-- filter p xxs
+--   | p x
+--   = x `ICons` filter p (xs ? lemmaTailAlwaysAnother p xxs)
+--       ? lemmaAllHelp p x (filter p xs)
+--   | otherwise
+--   = filter p (xs ? nextLemma p xxs ? lemmaTailAlwaysAnother p xxs)
+--
+--   where x  = ihead xxs
+--         xs = itail xxs
+
+{-@ lemmaAllHelp :: p:_
+                 -> {x:_| p x}
+                 -> {xs:_| allP p xs}
+                 -> {allP p (ICons x xs)}
+@-}
+lemmaAllHelp :: Pred a -> a -> IStream a -> Proof
+lemmaAllHelp p x xs
+  =   allP p (ICons x xs)
+  === (p x && allP p xs)
+  *** QED
+
+{-@ lemmaFilterIsSubStream :: p:_
+                           -> {xs:_|alwaysAnother p xs}
+                           -> {isSubStream (filter p xs) xs}
+@-}
+lemmaFilterIsSubStream :: Eq a => Pred a -> IStream a -> Proof
+lemmaFilterIsSubStream p xxs@(ICons x xs)
+  | p x
+  =   isSubStream (filter p xxs) xxs
+  === isSubStream (x `ICons` filter p xs) xxs
+  === (mem x xxs && isSubStream (filter p xs) xxs)
+    ? lemmaTailAlwaysAnother p xxs
+    ? lemmaFilterIsSubStream p xs
+    ? lemmaTailSubStream (filter p xs) xxs
+  *** QED
+  | otherwise
+  =   isSubStream (filter p xxs) xxs
+  === isSubStream (filter p xs) xxs
+    ? lemmaTailAlwaysAnother p xxs
+    ? lemmaFilterIsSubStream p xs
+    ? lemmaTailSubStream (filter p xs) xxs
   *** QED
 
 ------------------------------------------------------------
@@ -145,3 +289,42 @@ _lemmaAllImpliesAlwaysAnotherK k p xxs@(ICons x xs)
   === _alwaysAnotherK k p xxs
   *** QED
 
+
+{-@ _lemmaTailAlwaysAnotherK :: {k:Nat| k>0}
+                             -> p:_
+                             -> {xs:_| _alwaysAnotherK k p xs}
+                             -> {_alwaysAnotherK (k-1) p (itail xs)}
+@-}
+_lemmaTailAlwaysAnotherK :: Int -> Pred a -> IStream a -> Proof
+_lemmaTailAlwaysAnotherK 1 p xxs@(ICons x xs)
+  =   _alwaysAnotherK 1 p xxs
+  === _alwaysAnotherK 0 p xs
+  *** QED
+_lemmaTailAlwaysAnotherK k p xxs@(ICons x xs)
+  =   _alwaysAnotherK k     p xxs
+  === _alwaysAnotherK (k-1) p xs
+  *** QED
+
+{-@ _lemmaFilterIsSubStreamK :: k:Nat
+                             -> p:_
+                             -> {xs:_| alwaysAnother p xs}
+                             -> {_isSubStreamK k (filter p xs) xs}
+@-}
+_lemmaFilterIsSubStreamK :: Eq a => Int -> Pred a -> IStream a -> Proof
+_lemmaFilterIsSubStreamK k p xxs@(ICons x xs)
+  | k == 0 = _isSubStreamK 0 (filter p xxs) xxs *** QED
+  | p x
+  =   _isSubStreamK k (filter p xxs) xxs
+  === _isSubStreamK k (x `ICons` filter p xs) xxs
+  === (mem x xxs && _isSubStreamK (k-1) (filter p xs) xxs)
+    ? lemmaTailAlwaysAnother p xxs
+    ? _lemmaFilterIsSubStreamK (k-1) p xs
+    ? _lemmaTailSubStreamK (k-1) (filter p xs) xxs
+  *** QED
+  | otherwise
+  =   _isSubStreamK k (filter p xxs) xxs
+  === _isSubStreamK k (filter p xs)  xxs
+    ? lemmaTailAlwaysAnother p xxs
+    ? _lemmaFilterIsSubStreamK k p xs
+    ? _lemmaTailSubStreamK k (filter p xs) xxs
+  *** QED
