@@ -226,6 +226,123 @@ lemmaFilterIsSubStream p xxs@(ICons x xs)
     ? lemmaTailSubStream (filter p xs) xxs
   *** QED
 
+--------------- orderings --------------
+
+type OrdF a = a -> Int
+
+{-@ reflect increasing @-}
+increasing :: OrdF a -> IStream a -> Bool
+increasing ord (ICons x xs) =
+  ord x < ord (ihead xs) && increasing ord xs
+
+{-@ reflect incrFrom @-}
+incrFrom :: OrdF a -> Int -> IStream a -> Bool
+incrFrom ord low (ICons x xs) =
+  low <= ord x  && incrFrom ord (ord x + 1) xs
+
+
+{-@ lemmaIncr0 :: ord:_
+               -> low:_
+               -> {xs:_| incrFrom ord low xs}
+               -> {increasing ord xs}
+@-}
+lemmaIncr0 :: OrdF a -> Int -> IStream a -> Proof
+lemmaIncr0 ord low xxs@(ICons x xs)
+  =   incrFrom ord low xxs
+  === incrFrom ord (ord x + 1) xs
+  === (ord x + 1 <= ord x'
+        && incrFrom ord (ord x + 1) xs)
+  === (ord x < ord (ihead xs)
+        && incrFrom ord (ord x + 1) xs)
+    ? lemmaIncr0 ord (ord x + 1) xs
+  === (ord x < ord (ihead xs) && increasing ord xs)
+  === increasing ord xxs
+  *** QED
+  where ICons x' xs' = xs
+{-@ lemmaIncrLoose :: ord:_
+                   -> low:_
+                   -> {lower:_| lower <= low}
+                   -> {xs:_| incrFrom ord low xs}
+                   -> {incrFrom ord lower xs}
+@-}
+lemmaIncrLoose :: OrdF a -> Int -> Int -> IStream a -> Proof
+lemmaIncrLoose ord low lower xxs@(ICons x xs)
+  =   incrFrom ord low xxs
+  === (low   <= ord x && incrFrom ord (ord x + 1) xs)
+  === (lower <= ord x && incrFrom ord (ord x + 1) xs)
+  === incrFrom ord lower xxs
+  *** QED
+
+{-@ lemmaIncr1 :: ord:_
+               -> {xs:_| increasing ord xs}
+               -> {incrFrom ord (ord (ihead xs)) xs}
+@-}
+lemmaIncr1 :: OrdF a -> IStream a -> Proof
+lemmaIncr1 ord xxs@(ICons x xs)
+  =   increasing ord xxs
+  === (ord x < ord x' && increasing ord xs)
+    ? lemmaIncr1 ord xs
+  === (ord x + 1 <= ord x' && incrFrom ord (ord x') xs)
+    ? lemmaIncrLoose ord (ord x') (ord x + 1) xs
+  === (ord x <= ord x && incrFrom ord (ord x + 1) xs)
+  === incrFrom ord (ord x) xxs
+  *** QED
+  where ICons x' xs' = xs
+
+{-@ lemmaFilterPreservesIncrFrom :: ord:_
+                                 -> p:_
+                                 -> low:_
+                                 -> {xs:_ |  incrFrom ord low xs
+                                          && alwaysAnother p xs
+                                          && low <= ord (ihead xs)}
+                                 -> {incrFrom ord low (filter p xs)}
+@-}
+lemmaFilterPreservesIncrFrom
+  :: OrdF a
+  -> Pred a
+  -> Int
+  -> IStream a
+  -> Proof
+lemmaFilterPreservesIncrFrom ord p low xxs@(ICons x xs)
+  | p x
+  =   incrFrom ord low xxs
+  === (low <= ord x && ord x + 1 <= ord x'
+        && incrFrom ord (ord x + 1) xs)
+    ? lemmaTailAlwaysAnother p xxs
+    ? lemmaFilterPreservesIncrFrom ord p (ord x + 1) xs
+  === incrFrom ord low (x `ICons` filter p xs)
+  === incrFrom ord low (filter p xxs)
+  *** QED
+
+  | otherwise
+  =   incrFrom ord low xxs
+  === incrFrom ord (ord x + 1) xs
+    ? lemmaIncrLoose ord (ord x + 1) low xs
+  === incrFrom ord low xs
+    ? lemmaTailAlwaysAnother p xxs
+    ? lemmaFilterPreservesIncrFrom ord p low xs
+  === incrFrom ord low (filter p xxs)
+  *** QED
+  where (ICons x' xs') = xs
+
+{-@ theoremFilterPreservesOrdering :: ord:_
+                                   -> p:_
+                                   -> {xs:_|  increasing ord xs
+                                           && alwaysAnother p xs}
+                                   -> {increasing ord (filter p xs)}
+@-}
+theoremFilterPreservesOrdering :: OrdF a -> Pred a -> IStream a -> Proof
+theoremFilterPreservesOrdering ord p xxs@(ICons x xs)
+  =   increasing ord xxs
+    ? lemmaIncr1 ord xxs
+  === incrFrom ord (ord x) xxs
+    ? lemmaTailAlwaysAnother p xxs
+    ? lemmaFilterPreservesIncrFrom ord p (ord x) xxs
+  === incrFrom ord (ord x) (filter p xxs)
+    ? lemmaIncr0 ord (ord x) (filter p xxs)
+  === increasing ord (filter p xxs)
+  *** QED
+  where (ICons x' xs') = xs
 ------------------------------------------------------------
 -- coinductive to inductive proofs.
 
