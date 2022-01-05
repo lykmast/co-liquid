@@ -445,3 +445,183 @@ _lemmaFilterIsSubStreamK k p xxs@(ICons x xs)
     ? _lemmaFilterIsSubStreamK k p xs
     ? _lemmaTailSubStreamK k (filter p xs) xxs
   *** QED
+
+
+{-@ reflect _increasingK @-}
+{-@ _increasingK :: Nat -> _ -> _ -> _ @-}
+_increasingK :: Int -> OrdF a -> IStream a -> Bool
+-- this is True for k = 1 because ordering of one element is trivial
+_increasingK k _ _ | k <= 1 = True
+_increasingK k ord (ICons x xs) =
+  ord x < ord (ihead xs) && _increasingK (k-1) ord xs
+
+{-@ reflect _incrFromK @-}
+{-@ _incrFromK :: Nat -> _ -> _ -> _ -> _ @-}
+_incrFromK :: Int -> OrdF a -> Int -> IStream a -> Bool
+_incrFromK 0 _ _ _ = True
+_incrFromK k ord low (ICons x xs) =
+  low <= ord x  && _incrFromK (k-1) ord (ord x + 1) xs
+
+
+{-@ _lemmaIncr0K :: k:Nat
+                 -> ord:_
+                 -> low:_
+                 -> {xs:_| _incrFromK k ord low xs}
+                 -> {_increasingK k ord xs}
+@-}
+_lemmaIncr0K :: Int -> OrdF a -> Int -> IStream a -> Proof
+_lemmaIncr0K k ord _ xxs
+  | k <= 1
+  =   _increasingK k ord xxs
+  *** QED
+_lemmaIncr0K k ord low xxs@(ICons x xs)
+  =   _incrFromK k ord low xxs
+  === _incrFromK (k-1) ord (ord x + 1) xs
+  === (ord x + 1 <= ord x'
+        && _incrFromK (k-1) ord (ord x + 1) xs)
+  === (ord x < ord (ihead xs)
+        && _incrFromK (k-1) ord (ord x + 1) xs)
+    ? _lemmaIncr0K (k-1) ord (ord x + 1) xs
+  === (ord x < ord (ihead xs) && _increasingK (k-1) ord xs)
+  === _increasingK k ord xxs
+  *** QED
+  where ICons x' xs' = xs
+
+{-@ _lemmaIncrLooseK :: k:Nat
+                     -> ord:_
+                     -> low:_
+                     -> {lower:_| lower <= low}
+                     -> {xs:_| _incrFromK k ord low xs}
+                     -> {_incrFromK k ord lower xs}
+@-}
+_lemmaIncrLooseK :: Int -> OrdF a -> Int -> Int -> IStream a -> Proof
+_lemmaIncrLooseK 0 ord _ lower xxs@(ICons x xs)
+  =   _incrFromK 0 ord lower xxs
+  *** QED
+_lemmaIncrLooseK k ord low lower xxs@(ICons x xs)
+  =   _incrFromK k ord low xxs
+  === (low   <= ord x && _incrFromK (k-1) ord (ord x + 1) xs)
+  === (lower <= ord x && _incrFromK (k-1) ord (ord x + 1) xs)
+  === _incrFromK k ord lower xxs
+  *** QED
+
+{-@ _lemmaIncr1K :: k:Nat
+                 -> ord:_
+                 -> {xs:_| _increasingK k ord xs}
+                 -> {_incrFromK k ord (ord (ihead xs)) xs}
+@-}
+_lemmaIncr1K :: Int -> OrdF a -> IStream a -> Proof
+_lemmaIncr1K 0 ord xxs@(ICons x xs)
+  =   _incrFromK 0 ord (ord x) xxs
+  *** QED
+_lemmaIncr1K 1 ord xxs@(ICons x xs)
+  =   _incrFromK 1 ord (ord x) xxs
+  === (ord x <= ord x && _incrFromK 0 ord (ord x + 1) xs)
+  *** QED
+_lemmaIncr1K k ord xxs@(ICons x xs)
+  =   _increasingK k ord xxs
+  === (ord x < ord x' && _increasingK (k-1) ord xs)
+    ? _lemmaIncr1K (k-1) ord xs
+  === (ord x + 1 <= ord x' && _incrFromK (k-1) ord (ord x') xs)
+    ? _lemmaIncrLooseK (k-1) ord (ord x') (ord x + 1) xs
+  === (ord x <= ord x && _incrFromK (k-1) ord (ord x + 1) xs)
+  === _incrFromK k ord (ord x) xxs
+  *** QED
+  where ICons x' xs' = xs
+{-@ _lemmaFilterPreservesIncrFromK :: k:Nat
+                                   -> ord:_
+                                   -> p:_
+                                   -> low:_
+                                   -> {xs:_ |  incrFrom ord low xs
+                                            && alwaysAnother p xs
+                                            && low <= ord (ihead xs)}
+                                   -> { _incrFromK k ord low
+                                               (filter p xs)}
+@-}
+_lemmaFilterPreservesIncrFromK
+  :: Int
+  -> OrdF a
+  -> Pred a
+  -> Int
+  -> IStream a
+  -> Proof
+_lemmaFilterPreservesIncrFromK 0 ord p low xxs
+  =   _incrFromK 0 ord low (filter p xxs)
+  *** QED
+_lemmaFilterPreservesIncrFromK k ord p low xxs@(ICons x xs)
+  | p x
+  =   incrFrom ord low xxs
+  === (low <= ord x && ord x + 1 <= ord x'
+        && incrFrom ord (ord x + 1) xs)
+    ? lemmaTailAlwaysAnother p xxs
+    ? _lemmaFilterPreservesIncrFromK (k-1) ord p (ord x + 1) xs
+  === _incrFromK k ord low (x `ICons` filter p xs)
+  === _incrFromK k ord low (filter p xxs)
+  *** QED
+
+  | otherwise
+  =   incrFrom ord low xxs
+  === (low <= ord x && incrFrom ord (ord x + 1) xs)
+  === (low <= ord x && ord x + 1 <= ord x'
+        && incrFrom ord (ord x + 1) xs)
+    -- these two lemmas are potentially unsafe,
+    --   because they don't have a k constraint.
+    ? lemmaTailAlwaysAnother p xxs
+    ? lemmaIncrLoose ord (ord x + 1) low xs
+    ? _lemmaFilterPreservesIncrFromK k ord p low xs
+  === _incrFromK k ord low (filter p xs)
+  === _incrFromK k ord low (filter p xxs)
+  *** QED
+  where (ICons x' xs') = xs
+
+{-@ _theoremFilterPreservesOrderingK :: k:Nat
+                                     -> ord:_
+                                     -> p:_
+                                     -> {xs:_|  increasing ord xs
+                                             && alwaysAnother p xs}
+                                     -> {_increasingK k ord (filter p xs)}
+@-}
+_theoremFilterPreservesOrderingK
+  :: Int
+  -> OrdF a
+  -> Pred a
+  -> IStream a
+  -> Proof
+_theoremFilterPreservesOrderingK k ord p xxs@(ICons x xs)
+  =   increasing ord xxs
+    ? lemmaIncr1 ord xxs
+  === incrFrom ord (ord x) xxs
+    ? lemmaTailAlwaysAnother p xxs
+    ? _lemmaFilterPreservesIncrFromK k ord p (ord x) xxs
+  === _incrFromK k ord (ord x) (filter p xxs)
+    ? _lemmaIncr0K k ord (ord x) (filter p xxs)
+  === _increasingK k ord (filter p xxs)
+  *** QED
+  where (ICons x' xs') = xs
+
+
+------------------------------------------------------------
+-- Trying to find a way to combine co-predicates (without k)
+--   with corresponding inductive (with k) predicates.
+-- This is in order to use only inductive proofs in intermediate
+--   proving steps. Proofs without k argument could lead to
+--   fallacies (as in IStream.falseLemma).
+
+
+{-@ lemmaPartialIncrFrom :: k:Nat
+                         -> ord:_
+                         -> low:_
+                         -> {xs:_ | incrFrom ord low xs}
+                         -> {_incrFromK k ord low xs}
+@-}
+lemmaPartialIncrFrom :: Int -> OrdF a -> Int -> IStream a -> Proof
+lemmaPartialIncrFrom 0 ord low xs
+  =   _incrFromK 0 ord low xs
+  *** QED
+lemmaPartialIncrFrom k ord low xxs@(ICons x xs)
+  =   incrFrom ord low xxs
+  === (low <= ord x && incrFrom ord (ord x + 1) xs)
+    ? lemmaPartialIncrFrom (k-1) ord (ord x + 1) xs
+  === (low <= ord x && _incrFromK (k-1) ord (ord x + 1) xs)
+  === _incrFromK k ord low xxs
+  *** QED
