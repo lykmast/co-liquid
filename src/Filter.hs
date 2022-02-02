@@ -327,6 +327,9 @@ lemmaFilterPreservesIncrFrom ord p low xxs@(ICons x xs)
   *** QED
   where (ICons x' xs') = xs
 
+
+-- This is not an inductive or co-inductive proof so there is not
+--   a prefix version.
 {-@ theoremFilterPreservesOrdering :: ord:_
                                    -> p:_
                                    -> {xs:_|  increasing ord xs
@@ -354,20 +357,22 @@ _isSubStreamK :: Eq a => Int -> IStream a -> IStream a -> Bool
 _isSubStreamK 0 _ _ = True
 _isSubStreamK k (ICons x xs) ys = mem x ys && _isSubStreamK (k-1) xs ys
 
-{-@ _lemmaTailSubStreamK :: k:Nat
+
+-- Take care that this is not the desugaring of lemmmaTailSubStream
+--   as it uses a prefix predicate in the precondition. It is a stricter
+--   property that is useful for FilterIsSubStream.
+{-@ lemmaTailSubStreamK :: k:Nat
                          -> s:_
                          -> {u:_| _isSubStreamK k s (itail u)}
                          -> {_isSubStreamK k s u}
 @-}
-
-
-_lemmaTailSubStreamK :: Eq a => Int -> IStream a -> IStream a -> Proof
-_lemmaTailSubStreamK 0 s u
+lemmaTailSubStreamK :: Eq a => Int -> IStream a -> IStream a -> Proof
+lemmaTailSubStreamK 0 s u
   =   _isSubStreamK 0 s u *** QED
-_lemmaTailSubStreamK k sss@(ICons s ss) uus@(ICons u us)
+lemmaTailSubStreamK k sss@(ICons s ss) uus@(ICons u us)
   =   _isSubStreamK k sss us
     ? lemmaInTail s uus
-    ? _lemmaTailSubStreamK (k-1) ss uus
+    ? lemmaTailSubStreamK (k-1) ss uus
   === _isSubStreamK k sss uus
   *** QED
 
@@ -438,14 +443,14 @@ _lemmaFilterIsSubStreamK k p xxs@(ICons x xs)
   === (mem x xxs && _isSubStreamK (k-1) (filter p xs) xxs)
     ? lemmaTailAlwaysAnother p xxs
     ? _lemmaFilterIsSubStreamK (k-1) p xs
-    ? _lemmaTailSubStreamK (k-1) (filter p xs) xxs
+    ? lemmaTailSubStreamK (k-1) (filter p xs) xxs
   *** QED
   | otherwise
   =   _isSubStreamK k (filter p xxs) xxs
   === _isSubStreamK k (filter p xs)  xxs
     ? lemmaTailAlwaysAnother p xxs
     ? _lemmaFilterIsSubStreamK k p xs
-    ? _lemmaTailSubStreamK k (filter p xs) xxs
+    ? lemmaTailSubStreamK k (filter p xs) xxs
   *** QED
 
 
@@ -530,6 +535,14 @@ _lemmaIncr1K k ord xxs@(ICons x xs)
   === _incrFromK k ord (ord x) xxs
   *** QED
   where ICons x' xs' = xs
+
+
+-- Even though there is an inductive call (in the `not p x` branch)
+--   which does not decrease k but LH does not throw a termination
+--   error. This could be because we recurse in a structurally smaller
+--   lazy list (xs = tail xxs). Not sure that this is sound. In the
+--   Dafny version it uses `next p xs` as a termination metric, which
+--   I have added manually with a liquidAssert.
 {-@ _lemmaFilterPreservesIncrFromK :: k:Nat
                                    -> ord:_
                                    -> p:_
@@ -566,8 +579,6 @@ _lemmaFilterPreservesIncrFromK k ord p low xxs@(ICons x xs)
   === (low <= ord x && incrFrom ord (ord x + 1) xs)
   === (low <= ord x && ord x + 1 <= ord x'
         && incrFrom ord (ord x + 1) xs)
-    -- these two lemmas are potentially unsafe,
-    --   because they don't have a k constraint.
     ? lemmaTailAlwaysAnother p xxs
     ? lemmaIncrLoose ord (ord x + 1) low xs
     ? liquidAssert (next p xs < next p xxs ? nextLemma p xxs)
@@ -577,54 +588,3 @@ _lemmaFilterPreservesIncrFromK k ord p low xxs@(ICons x xs)
   *** QED
   where (ICons x' xs') = xs
 
-{-@ _theoremFilterPreservesOrderingK :: k:Nat
-                                     -> ord:_
-                                     -> p:_
-                                     -> {xs:_|  increasing ord xs
-                                             && alwaysAnother p xs}
-                                     -> {_increasingK k ord (filter p xs)}
-@-}
-_theoremFilterPreservesOrderingK
-  :: Int
-  -> OrdF a
-  -> Pred a
-  -> IStream a
-  -> Proof
-_theoremFilterPreservesOrderingK k ord p xxs@(ICons x xs)
-  =   increasing ord xxs
-    ? lemmaIncr1 ord xxs
-  === incrFrom ord (ord x) xxs
-    ? lemmaTailAlwaysAnother p xxs
-    ? _lemmaFilterPreservesIncrFromK k ord p (ord x) xxs
-  === _incrFromK k ord (ord x) (filter p xxs)
-    ? _lemmaIncr0K k ord (ord x) (filter p xxs)
-  === _increasingK k ord (filter p xxs)
-  *** QED
-  where (ICons x' xs') = xs
-
-
-------------------------------------------------------------
--- Trying to find a way to combine co-predicates (without k)
---   with corresponding inductive (with k) predicates.
--- This is in order to use only inductive proofs in intermediate
---   proving steps. Proofs without k argument could lead to
---   fallacies (as in IStream.falseLemma).
-
-
-{-@ lemmaPartialIncrFrom :: k:Nat
-                         -> ord:_
-                         -> low:_
-                         -> {xs:_ | incrFrom ord low xs}
-                         -> {_incrFromK k ord low xs}
-@-}
-lemmaPartialIncrFrom :: Int -> OrdF a -> Int -> IStream a -> Proof
-lemmaPartialIncrFrom 0 ord low xs
-  =   _incrFromK 0 ord low xs
-  *** QED
-lemmaPartialIncrFrom k ord low xxs@(ICons x xs)
-  =   incrFrom ord low xxs
-  === (low <= ord x && incrFrom ord (ord x + 1) xs)
-    ? lemmaPartialIncrFrom (k-1) ord (ord x + 1) xs
-  === (low <= ord x && _incrFromK (k-1) ord (ord x + 1) xs)
-  === _incrFromK k ord low xxs
-  *** QED

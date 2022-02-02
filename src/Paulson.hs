@@ -136,7 +136,7 @@ _theoremLmapIteratesK k f m
   *** QED
 
 {-@ _theoremLmapLinearK :: k:Nat -> f:_ -> xs:_
-                        -> ys:{ys:_| eqK k xs ys}
+                        -> ys:{ys:_| xs = ys}
                         -> {eqK k (lmap f xs) (lmap f ys)}
 @-}
 _theoremLmapLinearK
@@ -151,8 +151,7 @@ _theoremLmapLinearK 0 f xs ys
 _theoremLmapLinearK k f Nil Nil
   = eqK k (lmap f Nil) (lmap f Nil) *** QED
 _theoremLmapLinearK k f xxs@(Cons x xs) yys@(Cons y ys)
-  =   eqK k xxs yys
-  === (x == y && eqK (k-1) xs ys)
+  =   x == y
     ? _theoremLmapLinearK (k-1) f xs ys
   === (f x == f y && eqK (k-1) (lmap f xs) (lmap f ys))
   === eqK k (f x `Cons` lmap f xs) (f y `Cons` lmap f ys)
