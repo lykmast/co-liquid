@@ -3,7 +3,7 @@
 module IStream where
 
 import Language.Haskell.Liquid.ProofCombinators
-
+import Language.Haskell.Liquid.Prelude
 data IStream a = ICons a (IStream a)
 
 {-@ measure ihead @-}
@@ -71,39 +71,30 @@ lemmaEvenOdd (ICons x xs)
   *** QED
 
 ------------------------------------------------------------
--- Examples below are not complete: We still need lazy to make
---   them pass. In Dafny the parts marked lazy would be exempt
---   from termination checks as "co-recursive calls".
+-- Dafny classifies automatically calls as recursive and
+--  co-recursive and excludes the second from termination checks.
+--  Below we do the same thing manually by:
+--  1. Marking functions that contain co-recursive calls lazy
+--  2. Adding manual termination checks to recursive calls that
+--    are inside lazy functions. (e.g. fivesUp).
+
 
 {-@ lazy up @-}
 {-@ up :: n:_ -> IStream {v:_| v >= n} @-}
 up :: Int -> IStream Int
 up n = n `ICons` up (n+1)
 
--- this is not checked for termination in dafny.
-{-@ lazy fivesUpC @-}
-{-@ fivesUpC :: n:{v:_| v mod 5 = 0} -> IStream {v:_ | v >= n}  @-}
-fivesUpC :: Int -> IStream Int
-fivesUpC n = n `ICons` fivesUpI (n+1)
 
--- this should be checked, but lazy prevents it.
--- how this *probably* works in dafny:
---   - n mod 5 /=0 ==> fivesUpTerm (n+1) < fivesUpTerm n
---     (see theoremFivesUpTerm below).
---   - The important part is that only fivesUpI is checked and
---     this establishes the precondition n mod 5 /= 0 for the
---     termination check.
-{-@ fivesUpI :: n:{v:_| v mod 5 /= 0}
-             -> IStream {v:_ | v >= n} / [fivesUpTerm n]  @-}
-fivesUpI :: Int -> IStream Int
-fivesUpI n | np1 `mod` 5 /= 0 = fivesUpI np1
-           | otherwise        = fivesUpC np1
-             where np1 = n + 1
-
+{-@ lazy fivesUp @-}
 {-@ fivesUp :: n:_ -> IStream {v:_ | v >= n} @-}
 fivesUp :: Int -> IStream Int
-fivesUp n | n `mod` 5 == 0 = fivesUpC n
-          | otherwise      = fivesUpI n
+-- the first clause is not checked for termination in dafny.
+fivesUp n | n `mod` 5 == 0 = n `ICons` fivesUp (n+1)
+          | otherwise      =
+-- only the second clause is checked (here we have to do it manually
+--   with liquidAssert).
+            liquidAssert (fivesUpTerm (n+1) < fivesUpTerm n)
+                         $ fivesUp (n+1)
 
 {-@ inline fivesUpTerm @-}
 fivesUpTerm :: Int -> Int

@@ -10,6 +10,7 @@ module Filter where
 
 import IStream
 import Language.Haskell.Liquid.ProofCombinators
+import Language.Haskell.Liquid.Prelude(liquidAssert)
 import Prelude hiding(filter)
 
 {-@ reflect tailN @-}
@@ -161,37 +162,38 @@ nextLemma p xxs@(ICons _ xs)
   *** QED
 
 
--- Here we have to mark lazy. In the commented version below,
---   we prove termination for the recursive branch but LH does
---   not yet recognise corecursion.
--- Also the commented version uses some helper lemmas (to prove
+-- The function filter' uses some helper lemmas (to prove
 --   termination and refinement properties) which cannot (?) be
---   reflected.
+--   reflected. In order to have filter reflected, we removed helper
+--   lemmas from its body.
 
 {-@ lazy filter @-}
 {-@ reflect filter @-}
-{-@ filter :: p:_ -> xs:_ -> _ @-}
+{-@ assume filter :: p:_
+                  -> {xs:_| alwaysAnother p xs}
+                  -> {v:_| allP p v} @-}
 filter :: Pred a -> IStream a -> IStream a
 filter p xxs | p x       = x `ICons` filter p xs
              | otherwise = filter p xs
              where x  = ihead xxs
                    xs = itail xxs
 
--- {-@ filter :: p:_
---            -> {xs:_|alwaysAnother p xs}
---            -> {v:_| allP p v }
---            / [next p xs]
--- @-}
--- filter :: Pred a -> IStream a -> IStream a
--- filter p xxs
---   | p x
---   = x `ICons` filter p (xs ? lemmaTailAlwaysAnother p xxs)
---       ? lemmaAllHelp p x (filter p xs)
---   | otherwise
---   = filter p (xs ? nextLemma p xxs ? lemmaTailAlwaysAnother p xxs)
---
---   where x  = ihead xxs
---         xs = itail xxs
+{-@ lazy filter' @-}
+{-@ filter' :: p:_
+           -> {xs:_|alwaysAnother p xs}
+           -> {v:_| allP p v }
+@-}
+filter' :: Pred a -> IStream a -> IStream a
+filter' p xxs
+  | p x
+  = x `ICons` filter' p (xs ? lemmaTailAlwaysAnother p xxs)
+      ? lemmaAllHelp p x (filter' p xs)
+  | otherwise
+  = liquidAssert (next p xs < next p xxs ? nextLemma p xxs)
+     $ filter' p (xs ? lemmaTailAlwaysAnother p xxs)
+
+  where x  = ihead xxs
+        xs = itail xxs
 
 {-@ lemmaAllHelp :: p:_
                  -> {x:_| p x}
@@ -568,7 +570,8 @@ _lemmaFilterPreservesIncrFromK k ord p low xxs@(ICons x xs)
     --   because they don't have a k constraint.
     ? lemmaTailAlwaysAnother p xxs
     ? lemmaIncrLoose ord (ord x + 1) low xs
-    ? _lemmaFilterPreservesIncrFromK k ord p low xs
+    ? liquidAssert (next p xs < next p xxs ? nextLemma p xxs)
+      (_lemmaFilterPreservesIncrFromK k ord p low xs)
   === _incrFromK k ord low (filter p xs)
   === _incrFromK k ord low (filter p xxs)
   *** QED
