@@ -99,6 +99,64 @@ lemmaAllImpliesAlwaysAnother p xxs@(ICons x xs)
   === alwaysAnother p xxs
   *** QED
 
+
+{-@ reflect pBefore @-}
+{-@ pBefore :: _ -> Nat -> _ -> _ @-}
+pBefore :: Pred a -> Int -> IStream a -> Bool
+pBefore p n xs | n == 0             = False
+               | p (headN (n-1) xs) = True
+               | otherwise          = pBefore p (n-1) xs
+
+{-@ lemmaPBeforePos :: p:_
+                    -> n:Nat
+                    -> {xs:_|pBefore p n xs}
+                    -> {n>0}
+@-}
+lemmaPBeforePos :: Pred a -> Int -> IStream a -> Proof
+lemmaPBeforePos p n xs | n == 0    = pBefore p 0 xs *** QED
+                       | otherwise = ()
+
+{-@ lemmaPBeforeNotPrevious :: p:_
+                            -> n:Nat
+                            -> {xs:_| pBefore p n xs
+                                    && not (p (headN (n-1) xs))}
+                            -> {n > 1 && pBefore p (n-1) xs}
+@-}
+lemmaPBeforeNotPrevious :: Pred a -> Int -> IStream a -> Proof
+lemmaPBeforeNotPrevious p n xs
+  =   (pBefore p n xs && not (p (headN (n-1) xs)))
+  === pBefore p (n-1) xs
+    ? lemmaPBeforePos p (n-1) xs
+  *** QED
+
+{-@ previousP :: p:_
+              -> {n:_|n>0}
+              -> {xs:_| pBefore p n xs}
+              -> {v:Nat | v<n && p (headN v xs)}
+              / [n]
+@-}
+previousP :: Pred a -> Int -> IStream a -> Int
+previousP p n xs | p (headN (n-1) xs) = n-1
+                 | otherwise
+                 = liquidAssert (n>1 ? lemmaPBeforeNotPrevious p n xs)
+                                $ previousP p (n-1) xs
+
+{-@ nextMinimizer :: p:_
+                  -> n:Nat
+                  -> {xs:_ | alwaysAnother p xs && p (headN n xs)}
+                  -> {next:Nat| p (headN next xs)}
+@-}
+nextMinimizer :: Pred a -> Int -> IStream a -> Int
+nextMinimizer p n xs | pBefore p n xs = previousP p n xs
+                     | otherwise      = n
+
+-- note that next is finite only if there exists a x: p x in xs.
+-- This would normally (without --no-adt) not be allowed because the
+-- definition of IStream is not well-founded as an inductive datatype.
+-- As it is currently next does not truly prove termination/productivity
+--  of filter.
+-- In "Co-induction Simply" next uses nextMinimizer and an existential to
+-- implement a terminating next
 {-@ reflect next @-}
 {-@ next :: p:_
          -> xs:_
@@ -152,7 +210,7 @@ lemmaNoSmallerP p xxs@(ICons x xs) n
   *** QED
 
 {-@ nextLemma :: p:_
-              -> {xs:_| not (p (ihead xs)) }
+              -> {xs:_| not (p (ihead xs)) && alwaysAnother p xs }
               -> {next p (itail xs) >= 0 && next p xs > next p (itail xs)}
 @-}
 nextLemma :: Pred a -> IStream a -> Proof
