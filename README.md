@@ -110,7 +110,7 @@ To sum up: termination/productivity checks for functions are achieved through:
   - co-recursion in part of the co-inductive type (e.g. tail of stream).
   - decreases clause (manually added with liquidAssert) in inductive calls.
 
-### TODO for Liquid
+### TODO for Co-induction Simply
 - A way to exclude co-recursive calls from termination checks e.g in `fivesUp` above.
 - A way to reference full co-inductive lemmas/predicates (not just prefixed versions).
 - (Not strictly relevant to co-liquid) Is there a way to reflect `filter'` (from [Filter.hs](src/Filter.hs) along with proof terms? 
@@ -392,7 +392,7 @@ lemmaFalse (ICons x xs)
   *** QED
 ```
 
-### Next for sized types
+### TODO for sized types
 
 - Is this typing equivalent to having co-patterns?
 - Can sized types be encoded in Liquid Haskell?
