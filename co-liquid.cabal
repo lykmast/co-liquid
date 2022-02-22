@@ -18,6 +18,7 @@ library
       IStream
       LList
       Paulson
+      SizedStreamProofs
       Streams
   other-modules:
       Paths_co_liquid
