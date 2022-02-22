@@ -110,7 +110,10 @@ To sum up: termination/productivity checks for functions are achieved through:
   - co-recursion in part of the co-inductive type (e.g. tail of stream).
   - decreases clause (manually added with liquidAssert) in inductive calls.
 
-
+### TODO for Liquid
+- A way to exclude co-recursive calls from termination checks e.g in `fivesUp` above.
+- A way to reference full co-inductive lemmas/predicates (not just prefixed versions).
+- (Not strictly relevant to co-liquid) Is there a way to reflect `filter'` (from [Filter.hs](src/Filter.hs) along with proof terms? 
 
 ## 2. [Well-founded recursion with copatterns and sized types](https://www.cambridge.org/core/services/aop-cambridge-core/content/view/39794AEA4D0F5003C8E9F88E564DA8DD/S0956796816000022a.pdf/well-founded-recursion-with-copatterns-and-sized-types.pdf)
 
