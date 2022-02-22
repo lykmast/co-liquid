@@ -376,7 +376,7 @@ theoremBelowMult (ICons a as)
   *** QED
 ```
 
-However evalBS as it is can prove `{false}`:
+However `evalBS` as it is can prove `{false}`:
 
 ```haskell
 {-@ reflect falsesOr @-}
