@@ -70,22 +70,24 @@ p2 x y = x && p1 (x || y) y
 ```
 
 Co-predicate declarations also define a prefix predicate (a finite unrolling of a co-predicate). The prefix predicate is constructed from the co-predicate by:
-  - adding a k:Nat parameter to denote prefix length
-  - adding a decreases k clause (automatic in Haskell)
-  - replace intra-cluster calls with corresponding prefix predicate with k-1 as prefix length.
-  - adding a case for k=0 for which the prefix predicate results to true.
-Note that equality must also be transformed to prefix form i.e s==t becomes eqK k s t.
+  - adding a `k:Nat` parameter to denote prefix length
+  - adding a `decreases k` clause (automatic in Haskell)
+  - replace intra-cluster calls with corresponding prefix predicate with `k-1` as prefix length.
+  - adding a case for `k==0` for which the prefix predicate results to true.
+Note that equality must also be transformed to prefix form i.e `s==t` becomes `eqK k s t`.
 
-forall x. Q(x) <=> forall k. _Qk(x).
+Below is the theorem that connects co-predicates with prefix predicates:
+
+`forall x. Q(x) <=> forall k. _Qk(x).`
 
 ### Co-methods
 Co-methods are coinductive proofs. As with co-predicates, co-methods define prefix methods. A cluster containing a co-method must only contain co-methods and prefix methods. Both co-methods and prefix methods are always ghosts (their code is noly relevant to the verifier and not part of the executable).
 
 A prefix method is constructed by a co-method by:
-  - adding a k:Nat parameter to denote prefix length.
-  - replacing in the comethod's postcondition co-predicates (that are in positive co-friendly positions) with prefix predicates that have k as the prefix length parameter(!!not in the precondition).
-  - replace intra-cluster calls with the corresponding prefix method with k-1 as the prefix length. Note that non-intra-cluster calls are not replaced. Also we can still use prefix versions explicitly in comethods (or even lfp theorems; e.g. Filter.hs/lemmaTailSubStreamK.)
-  - making the body's execution conditional on k /= 0. For k == 0 the proof will be trivial because of prefix predicates.
+  - adding a `k:Nat` parameter to denote prefix length.
+  - replacing in the comethod's postcondition co-predicates (that are in positive co-friendly positions) with prefix predicates that have `k` as the prefix length parameter(!!not in the precondition).
+  - replace intra-cluster calls with the corresponding prefix method with `k-1` as the prefix length. Note that non-intra-cluster calls are not replaced. Also we can still use prefix versions explicitly in comethods (or even lfp theorems; e.g. `lemmaTailSubStreamK` from [Filter.hs](src/Filter.hs)).
+  - making the body's execution conditional on `k /= 0`. For `k == 0` the proof will be trivial because of prefix predicates.
 
 ### Limitations
 Termination cannot be proven for some functions i.e
@@ -133,27 +135,27 @@ The paper has also co-patterns, which I have not used here. I have instead conve
 data IStream{i} a = ICons{i,(νj<i)} {ihead :: a, itail:: (IStream{j} a)}
 ```
 
-ICons provides a new j the relationship i>j and makes it available downstream.
+ICons provides a new `j` the relationship `i>j` and makes it available downstream.
 
 ```haskell
 ICons{i,(νj<i)} :: a -> IStream{j} a -> IStream{i} a
 ```
 
 
-ihead, itail need a witness j>i that in itail serves also as the size of the result:
+`ihead`, `itail` need a witness `j>i` that in `itail` serves also as the size of the result:
 
 ```haskell
 ihead{i,j(j<i)} :: IStream{i} a -> a
 itail{i,j(j<i)} :: IStream{i} a -> IStream{j} a
 ```
 
-e.g xs has depth/size: k < j < i = size ys
+e.g `xs` has depth/size: `k < j < i = size ys`
 
 ```haskell
 ys = a `ICons{i,j}` (b `ICons{j,k}` xs)
 ```
 
-Here in `zipWith` and `repeat` ICons{i,j} creates j,i>j and makes them available for ihead,itail and zipWith.
+Here in `zipWith` and `repeat`, `ICons{i,j}` creates `j,i>j` and makes them available for `ihead`, `itail` and `zipWith`.
 
 ```haskell
 repeat{i} :: a -> IStream{i} a
@@ -218,7 +220,7 @@ map{i} _ (MCons Nothing)
   = MCons Nothing
 ```
 
-We can implement map with unfold if we type unfold more precisely:
+We can implement `map` with `unfold` if we type `unfold` more precisely:
 
 ```haskell
 unfold{i} :: (Λ j k<j. s{j} -> Maybe (a,s{k})
@@ -280,22 +282,22 @@ bfs{i} ((v `ICons{ω}` vs) `ICons{i,j}` vss)
     p2 = bfs{j} (rest{j} p1)
 ```
 
-Here p1 and p2 definitions reference `j (<i)` which becomes available to them from `Node{i,j}` and `ICons{i,j}` resp. at their call site.
+Here `p1` and `p2` definitions reference `j (<i)` which becomes available to them from `Node{i,j}` and `ICons{i,j}` resp. at their call site.
 
-The size j is not important in itself. What we care about is the constraint j<i.
+The size `j` is not important in itself. What we care about is the constraint `j<i`.
 
-The algorithm is completed with bf which takes a stream of labels and returns a tree labeled by the stream in bf order:
+The algorithm is completed with `bf` which takes a stream of labels and returns a tree labeled by the stream in breadth-first order:
 
 ```haskell
 bf{i} :: IStream{ω} a -> Tree{i} a
 bf{i} vs = t where Res{i} t vss = bfs{i} (vs `ICons{i,j}` vss)
 ```
 
-Note that in the rhs of the where clause vss can be safely cast to a smalller depth j (from the lhs it has depth i > j).
+Note that in the rhs of the where clause `vss` can be safely cast to a smalller depth `j` (from the lhs it has depth `i > j`).
 
 ### Other examples
 
-Odds and evens can only work on fully defined streams. All destructors without an ordinal use ω implicitly. Ordinals i and j are only used to prove productivity.
+Odds and evens can only work on fully defined streams. All destructors without an ordinal use `ω` implicitly. Ordinals `i` and `j` are only used to prove productivity.
 
 ```haskell
 odds{i} :: IStream{ω} a -> IStream{ω} a
@@ -304,21 +306,16 @@ odds{i} xs = ihead xs `ICons{i,j}` odds{j} (itail (itail xs))
 evens :: IStream{ω} a -> IStream{ω} a
 evens = odds . itail
 
-merge :: IStream{i} a -> IStream{i} a -> IStream{ω} a
-merge xs ys = ihead{i,j} xs `ICons{i,j}` merge{j} ys (itail j xs)
-```
-
-```haskell
 merge{i} :: IStream{i+1} a -> IStream{i} -> IStream{i} a
 merge{i} xs ys = ihead{i+1,i} xs `ICons{i,j}` merge{j} ys (itail{i+1,i} xs)
+```
+
+Here `paperfolds` is more difficult to typecheck (despite being productive). We can typecheck it by unfolding `merge` once in its definition.
+
+```haskell
 toggle{i} :: IStream{i} a
 toggle{i} = 1 `Cons{i,j}` (0 `Cons{j,k}` toggle{j})
 
-```
-
->
-
-```haskell
 -- This would not typecheck because paperfolds does not have a
 -- terminating measure.
 paperfolds{i} :: IStream{i} a
