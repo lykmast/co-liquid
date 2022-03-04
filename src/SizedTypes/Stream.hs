@@ -1,11 +1,11 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--no-adt" @-}
 
-module SizedStream where
+module SizedTypes.Stream where
 
 import Prelude hiding (repeat, zipWith, map)
 import Language.Haskell.Liquid.Prelude (liquidAssert)
-import Size
+import SizedTypes.Size
 
 -- will be hidden.
 data Stream a = Cons a (Stream a)

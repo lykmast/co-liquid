@@ -1,10 +1,10 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--no-adt" @-}
 
-module SizedCoList where
+module SizedTypes.CoList where
 
 import Data.Bifunctor
-import Size
+import SizedTypes.Size
 
 data CoList a = CL (Maybe (a, CoList a))
 

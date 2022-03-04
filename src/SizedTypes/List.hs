@@ -1,9 +1,9 @@
 {-@ LIQUID "--no-adt" @-}
 {-@ LIQUID "--reflect" @-}
-module SizedList where
+module SizedTypes.List where
 
 import Prelude hiding(map, repeat, head, tail, reverse, length)
-import Size
+import SizedTypes.Size
 
 data List a = Cons a (List a) | Nil
 {-@ measure emp @-}

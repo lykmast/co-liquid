@@ -347,9 +347,9 @@ fivesUpTerm n = 4 - ((n-1) `mod` 5)
 
 ---
 
-I have implemented the above functions in Liquid Haskell. The relevant files are [Size.hs](src/Size.hs), [SizedStream.hs](src/SizedStream.hs), [SizedCoList.hs](src/SizedCoList.hs), [SizedList.hs](src/SizedList.hs) and [BF.hs](src/BF.hs).
+I have implemented the above functions in Liquid Haskell. The relevant files are [Size.hs](src/SizedTypes/Size.hs), [Stream.hs](src/SizedTypes/Stream.hs), [CoList.hs](src/SizedTypes/CoList.hs), [List.hs](src/SizedTypes/List.hs) and [BF.hs](src/SizedTypes/BF.hs).
 
-Here is an excerpt from SizedStream with the definition of `fib` and `zipWith`:
+Here is an excerpt from `Stream.hs` with the definition of `fib` and `zipWith`:
 
 ```haskell
 {-@ zipWith :: i:Size -> _

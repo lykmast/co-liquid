@@ -1,10 +1,10 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--no-adt" @-}
 
-module BF where
+module SizedTypes.BF where
 
-import Size
-import SizedStream
+import SizedTypes.Size
+import SizedTypes.Stream
 
 type SS a = Stream (Stream a)
 {-@ type SS a S = StreamG (StreamI a) S @-}
