@@ -14,10 +14,16 @@ extra-source-files:
 
 library
   exposed-modules:
+      BF
       Filter
       IStream
       LList
       Paulson
+      Size
+      SizeAlt
+      SizedCoList
+      SizedList
+      SizedStream
       SizedStreamProofs
       Streams
   other-modules:

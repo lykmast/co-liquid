@@ -200,10 +200,10 @@ repeat'{i} x = MCons{i,j} $ Just (x, repeat'{j} x)
 
 
 fmap1 :: (a -> c) -> Maybe (a,b) -> Maybe (c,b)
-fmap1 f = fmap . first
+fmap1 = fmap . first
 
 fmap2 :: (b -> d) -> Maybe (a,b) -> Maybe (a,d)
-fmap2 f = fmap . second
+fmap2 = fmap . second
 
 
 unfold{i} :: (s -> Maybe (a,s)) -> s -> CoList{i} a
@@ -290,7 +290,10 @@ The algorithm is completed with `bf` which takes a stream of labels and returns 
 
 ```haskell
 bf{i} :: IStream{ω} a -> Tree{i} a
-bf{i} vs = t where Res{i} t vss = bfs{i} (vs `ICons{i,j}` vss)
+bf{i} vs = rest{i} (bfp{i} vs) 
+  where bfp{i} :: IStream{ω} a -> Result{i} a
+        bfp{i} vs = bfs{i} (vs `ICons{i,j}` (rest{j} (bfp{j} vs)))
+
 ```
 
 Note that in the rhs of the where clause `vss` can be safely cast to a smalller depth `j` (from the lhs it has depth `i > j`).
@@ -306,8 +309,8 @@ odds{i} xs = ihead xs `ICons{i,j}` odds{j} (itail (itail xs))
 evens :: IStream{ω} a -> IStream{ω} a
 evens = odds . itail
 
-merge{i} :: IStream{i+1} a -> IStream{i} -> IStream{i} a
-merge{i} xs ys = ihead{i+1,i} xs `ICons{i,j}` merge{j} ys (itail{i+1,i} xs)
+merge{i} :: IStream{i} a -> IStream{i} -> IStream{i} a
+merge{i} xs ys = ihead{i,j} xs `ICons{i,j}` merge{j} ys (itail{i,j} xs)
 ```
 
 Here `paperfolds` is more difficult to typecheck (despite being productive). We can typecheck it by unfolding `merge` once in its definition.
@@ -323,8 +326,8 @@ paperfolds{i} = merge{i} toggle{i+1} paperfolds{?}
 
 -- This is the version that typechecks (applying one 
 --   unfolding of merge).
-paperfolds{i} = ihead toggle `ICons{i,j}` 
-                 merge{j} paperfolds{j} (itail toggle)
+paperfolds{i} = 0 `ICons{i,j}` merge{j} paperfolds{j} 
+                                        (itail{i,j} toggle{i})
 ```
 
 Mixed induction and coinduction works by using the ordinal and the inductive termination metric as a lexicographic termination metric.
@@ -340,6 +343,30 @@ fivesUp n | n `mod` 5 == 0 = n `ICons{i,j}` fivesUp{j} (n+1)
 {-@ inline fivesUpTerm @-}
 fivesUpTerm :: Int -> Int
 fivesUpTerm n = 4 - ((n-1) `mod` 5)
+```
+
+---
+
+I have implemented the above functions in Liquid Haskell. The relevant files are [Size.hs](src/Size.hs), [SizedStream.hs](src/SizedStream.hs), [SizedCoList.hs](src/SizedCoList.hs), [SizedList.hs](src/SizedList.hs) and [BF.hs](src/BF.hs).
+
+Here is an excerpt from SizedStream with the definition of `fib` and `zipWith`:
+
+```haskell
+{-@ zipWith :: i:Size -> _
+            -> StreamG _ i
+            -> StreamG _ i
+            -> StreamG _ i
+@-}
+zipWith :: Size -> (a -> a -> a) -> Stream a -> Stream a -> Stream a
+zipWith i f xs ys = mkStream i
+                      (\j -> hd j xs `f` hd j ys)
+                      $ \j -> zipWith j f (tl j xs) (tl j ys)
+
+{-@ fib :: i:Size -> StreamG _ i @-}
+fib :: Num a => Size -> Stream a
+fib i = mkStream i (const 0)
+          $ \j -> mkStream j (const 1)
+          $ \k -> zipWith k (+) (fib k) (tl k (fib j))
 ```
 
 ### Theorems & Proofs
@@ -392,5 +419,6 @@ lemmaFalse (ICons x xs)
 ### TODO for sized types
 
 - Is this typing equivalent to having co-patterns?
-- Can sized types be encoded in Liquid Haskell?
+- Can sized types be encoded in Liquid Haskell? 
+I have provided an implementation; it remains to be seen if it is sound. Also I am not sure how to implement infinity.
 - Is there a way to make the predicate/proof implementation sound? 
