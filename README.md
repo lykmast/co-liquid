@@ -375,7 +375,7 @@ In order to implement theorems and proofs we need to:
  1. find a way to implement coinductive predicates; that is predicates that are of the form `CoindType -> Bool`. The problem here is that such predicates are not terminating since (in the general case) we need to observe an infinite object to produce a result.
  2. find a way to implement coinductive proofs on those predicates. This is not straight-forward because we need to provide a context where a coinductive proof can co-recurse on itself (i.e. provide an ordinal...).
 
-An idea is instead of having predicates `:: a -> Bool`, which would not terminate, to use predicates that can be partially observed i.e. embeded in a co-inductive structure. This would also offer a context for co-inductive proofs to recurse. Implementation from [SizedStreamProofs.hs](src/SizedStreamProof.hs):
+An idea is instead of having predicates `:: a -> Bool`, which would not terminate, to use predicates that can be partially observed i.e. embeded in a co-inductive structure. This would also offer a context for co-inductive proofs to recurse. Implementation from [SizedStreamProofs.hs](src/SizedStreamProofs.hs):
 
 ```haskell
 data BS = Bool :&& BS | Bool :|| BS
