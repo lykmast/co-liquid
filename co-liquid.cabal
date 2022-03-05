@@ -25,6 +25,7 @@ library
       SizedTypes.Size
       SizedTypes.SizeAlt
       SizedTypes.Stream
+      SizedTypes.TelfordTurner
       Streams
   other-modules:
       Paths_co_liquid
