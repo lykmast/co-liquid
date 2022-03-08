@@ -14,17 +14,18 @@ extra-source-files:
 
 library
   exposed-modules:
-      BF
       Filter
       IStream
       LList
       Paulson
-      Size
-      SizeAlt
-      SizedCoList
-      SizedList
-      SizedStream
       SizedStreamProofs
+      SizedTypes.BF
+      SizedTypes.CoList
+      SizedTypes.List
+      SizedTypes.Size
+      SizedTypes.SizeAlt
+      SizedTypes.Stream
+      SizedTypes.TelfordTurner
       Streams
   other-modules:
       Paths_co_liquid

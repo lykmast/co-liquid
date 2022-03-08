@@ -1,11 +1,11 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--no-adt" @-}
 
-module SizedStream where
+module SizedTypes.Stream where
 
 import Prelude hiding (repeat, zipWith, map)
 import Language.Haskell.Liquid.Prelude (liquidAssert)
-import Size
+import SizedTypes.Size
 
 -- will be hidden.
 data Stream a = Cons a (Stream a)
@@ -83,13 +83,13 @@ zipWith' i f xs ys = mkStream i
                               `f` hd (newSize j) (tl j ys))
                        $ \j -> zipWith j f (tl j xs) (tl j ys)
 
-{-@ odds :: StreamI _ -> StreamI _ @-}
-odds :: Stream a -> Stream a
-odds xs = mkIStream (hdi xs) (tli (tli xs))
+{-@ odds :: i:Size -> StreamI _ -> StreamG _ i @-}
+odds :: Size -> Stream a -> Stream a
+odds i xs = mkStream i (const $ hdi xs) (\j -> odds j $ tli . tli $ xs)
 
-{-@ evens :: StreamI _ -> StreamI _ @-}
-evens :: Stream a -> Stream a
-evens = odds . tli
+{-@ evens :: i:Size -> StreamI _ -> StreamG _ i @-}
+evens :: Size -> Stream a -> Stream a
+evens i = odds i . tli
 
 
 {-@ merge :: i:Size -> StreamG _ i -> StreamG _ i -> StreamG _ i @-}

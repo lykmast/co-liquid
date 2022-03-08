@@ -1,7 +1,7 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--no-adt" @-}
 
-module Size where
+module SizedTypes.Size where
 
 -- newtype Size = S {sizeVal :: Int}
 {-@ type Size = Nat @-}
