@@ -47,9 +47,7 @@ mkIStream x xs = mkStream 0 (const x) (const xs)
                     -> {v:Stream<q> a<p>|size v = i}
 @-}
 mkStream :: Size -> (Size -> a) -> (Size -> Stream a) -> Stream a
-mkStream i fx fxs | i >= 0    = let j = newSize i
-                                in  Cons (fx j) (fxs j)
-                  | otherwise = undefined
+mkStream _ fx fxs = Cons (fx 0) (fxs 0)
 
 {-@ repeat :: i:Size -> _ -> StreamG _ i @-}
 repeat i x = mkStream i (const x) (\j -> repeat j x)
@@ -71,7 +69,8 @@ fib i = mkStream i (const 0)
           $ \k -> zipWith k (+) (fib k) (tl k (fib j))
 
 -- The definition below is wrong and it (correctly) does not typecheck
---  unless we use newSize.
+--  unless we use fail.
+{-@ fail zipWith' @-}
 {-@ zipWith' :: i:Size -> _
              -> StreamG _ i
              -> StreamG _ i
@@ -79,8 +78,8 @@ fib i = mkStream i (const 0)
 @-}
 zipWith' :: Size -> (a -> a -> a) -> Stream a -> Stream a -> Stream a
 zipWith' i f xs ys = mkStream i
-                       (\j ->    (hd (newSize j) (tl j xs))
-                              `f` hd (newSize j) (tl j ys))
+                       (\j ->    (hd j (tl j xs))
+                              `f` hd j (tl j ys))
                        $ \j -> zipWith j f (tl j xs) (tl j ys)
 
 {-@ odds :: i:Size -> StreamI _ -> StreamG _ i @-}

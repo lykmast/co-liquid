@@ -58,9 +58,7 @@ mkTree :: Size
        -> (Size -> Tree a)
        -> (Size -> Tree a)
        -> Tree a
-mkTree i flb fl fr | i >= 0    = let j = newSize i
-                                 in  Node (flb j) (fl j) (fr j)
-                   | otherwise = undefined
+mkTree i flb fl fr = Node (flb 0) (fl 0) (fr 0)
 
 {-@ assume mkITree :: _ -> ITree _ -> ITree _ -> ITree _ @-}
 mkITree :: a -> Tree a -> Tree a -> Tree a

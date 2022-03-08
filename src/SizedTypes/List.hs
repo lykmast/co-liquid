@@ -41,9 +41,7 @@ mkICons = Cons
                   -> v:ListS a<p> i
 @-}
 mkCons :: Size -> (Size -> a) -> (Size -> List a) -> List a
-mkCons i fx fxs | i >= 0    = let j = newSize i
-                              in  Cons (fx j) (fxs j)
-                | otherwise = undefined
+mkCons i fx fxs = Cons (fx 0) (fxs 0)
 
 {-@ assume out :: forall <p::a -> Bool>
                 . j:Size

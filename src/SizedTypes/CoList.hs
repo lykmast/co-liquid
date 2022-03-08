@@ -16,9 +16,7 @@ data CoList a = CL (Maybe (a, CoList a))
                  -> ({j:Size|j<i} -> Maybe (_,{xs:_| size xs >= j}))
                  -> {v:_| size v = i} @-}
 mCons :: Size -> (Size -> Maybe (a,CoList a)) -> CoList a
-mCons i fxxs | i >= 0    = let j = newSize i
-                           in  CL (fxxs j)
-             | otherwise = undefined
+mCons i fxxs = CL (fxxs 0)
 
 {-@ assume out :: j:Size
                -> {xs:CoList a | j < size xs}
