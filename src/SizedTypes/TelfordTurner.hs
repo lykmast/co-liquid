@@ -1,4 +1,6 @@
 {-@ LIQUID "--no-adt" @-}
+{-@ LIQUID "--reflection" @-}
+
 module SizedTypes.TelfordTurner where
 import SizedTypes.Size
 import SizedTypes.Stream
