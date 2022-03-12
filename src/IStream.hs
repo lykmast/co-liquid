@@ -276,6 +276,23 @@ _lemmaRepeatK k x | k == 0
     ? lemmaEqKReflexive k xs
   *** QED
   where xs = irepeat x
+
+{-@ reflect nnegK @-}
+{-@ nnegK :: Nat -> _ -> _ @-}
+nnegK :: Int -> IStream Int -> Bool
+nnegK 0 _ = True
+nnegK k (ICons x xs) = x >= 0 && nnegK (k-1) xs
+
+{-@ _theoremNNegSquareK :: k:Nat -> a:IStream Int
+                        -> {nnegK k (mult a a)} @-}
+_theoremNNegSquareK :: Int -> IStream Int -> ()
+_theoremNNegSquareK 0 a = nnegK 0 (mult a a) *** QED
+_theoremNNegSquareK k (ICons a as)
+  =   nnegK k (mult (ICons a as) (ICons a as))
+  === nnegK k (ICons (a * a) (mult as as))
+  === (a * a >= 0 && nnegK (k-1) (mult as as))
+    ? _theoremNNegSquareK (k-1) as
+  *** QED
 ------------------------------------------------------------
 
 {-@ reflect implies @-}
