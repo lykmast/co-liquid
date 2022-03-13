@@ -24,12 +24,19 @@ mult (ICons a as) (ICons b bs) = ICons (a * b) (mult as bs)
 
 {-@ theoremNNegSquare :: a:IStream Int -> {nneg (mult a a)}@-}
 theoremNNegSquare :: IStream Int -> ()
-theoremNNegSquare (ICons a as)
-  =   nneg (mult (ICons a as) (ICons a as))
-  === nneg (ICons (a * a) (mult as as))
-  === (a * a >= 0 && nneg (mult as as))
-    ? theoremNNegSquare as
-  *** QED
+-- theoremNNegSquare (ICons a as)
+--   =   nneg (mult (ICons a as) (ICons a as))
+--   === nneg (ICons (a * a) (mult as as))
+--   === (a * a >= 0 && nneg (mult as as))
+--     ? theoremNNegSquare as
+--   *** QED
+--
+-- | The above theorem must be proven without co-recursion through
+--    the prefix versions
+
+theoremNNegSquare a =
+  dAxiom_nneg (mult a a) (\k -> _theoremNNegSquareK k a)
+
 
 
 {-@ reflect below @-}
@@ -37,14 +44,17 @@ below :: Ord a => IStream a -> IStream a -> Bool
 below (ICons x xs) (ICons y ys)
   = x <= y && ((x == y) `implies` below xs ys )
 
-{-@ theoremBelowMult :: a:IStream Int -> {below a (mult a a)}@-}
-theoremBelowMult :: IStream Int -> ()
-theoremBelowMult (ICons a as)
-  =   below (ICons a as) (mult (ICons a as) (ICons a as))
-  === below (ICons a as) (ICons (a * a) (mult as as))
-  === (a <= a*a && ( (a == a*a) `implies` below as (mult as as)))
-    ? theoremBelowMult as
-  *** QED
+{-@ theoremBelowSquare :: a:IStream Int -> {below a (mult a a)}@-}
+-- theoremBelowSquare (ICons a as)
+--   =   below (ICons a as) (mult (ICons a as) (ICons a as))
+--   === below (ICons a as) (ICons (a * a) (mult as as))
+--   === (a <= a*a && ( (a == a*a) `implies` below as (mult as as)))
+--     ? theoremBelowSquare as
+--   *** QED
+
+theoremBelowSquare :: IStream Int -> ()
+theoremBelowSquare a = dAxiom_below a (mult a a)
+                        (\k -> _theoremBelowSquareK k a)
 
 
 {-@ reflect merge @-}
@@ -60,16 +70,18 @@ evens :: IStream a -> IStream a
 evens = odds . itail
 
 {-@ lemmaEvenOdd :: xs:_ -> {merge (odds xs) (evens xs) = xs} @-}
-lemmaEvenOdd :: IStream a -> Proof
-lemmaEvenOdd (ICons x xs)
-  =   merge (odds (ICons x xs)) (evens (ICons x xs))
-  === merge (ICons x (odds (itail xs))) ((odds . itail) (ICons x xs))
-  === merge (ICons x ((odds . itail) xs)) (odds xs)
-  === ICons x (merge (odds xs) (evens xs))
-    ? lemmaEvenOdd xs
-  === ICons x xs
-  *** QED
+lemmaEvenOdd :: Eq a => IStream a -> Proof
+-- lemmaEvenOdd (ICons x xs)
+--   =   merge (odds (ICons x xs)) (evens (ICons x xs))
+--   === merge (ICons x (odds (itail xs))) ((odds . itail) (ICons x xs))
+--   === merge (ICons x ((odds . itail) xs)) (odds xs)
+--   === ICons x (merge (odds xs) (evens xs))
+--     ? lemmaEvenOdd xs
+--   === ICons x xs
+--   *** QED
 
+lemmaEvenOdd xs = dAxiom_eq (merge (odds xs) (evens xs)) xs
+                            (\k -> _lemmaEvenOddK k xs)
 ------------------------------------------------------------
 -- Dafny classifies automatically calls as recursive and
 --  co-recursive and excludes the second from termination checks.
@@ -107,12 +119,13 @@ trueStream = trueStream . itail
 
 {-@ trueLemma :: s:_ -> {trueStream s} @-}
 trueLemma :: IStream a -> Proof
-trueLemma (ICons s ss)
-  =   trueStream (ICons s ss)
-  === (trueStream . itail) (ICons s ss)
-  === trueStream ss
-    ? trueLemma ss
-  *** QED
+-- trueLemma (ICons s ss)
+--   =   trueStream (ICons s ss)
+--   === (trueStream . itail) (ICons s ss)
+--   === trueStream ss
+--     ? trueLemma ss
+--   *** QED
+trueLemma s = dAxiom_trueStream s (\k -> _trueLemmaK k s)
 
 -- falseLemma erroneously typechecks but when we translate
 --    the proof to induction it successfully fails.
@@ -128,14 +141,27 @@ falseLemma (ICons s ss)
 irepeat x = x `ICons` irepeat x
 
 {-@ lemmaRepeat :: x:_ -> {itail (irepeat x) = irepeat x} @-}
-lemmaRepeat x
-  =   itail (irepeat x)
-  === itail (x `ICons` irepeat x)
-  === irepeat x
-  *** QED
+-- lemmaRepeat x
+--   =   itail (irepeat x)
+--   === itail (x `ICons` irepeat x)
+--   === irepeat x
+--   *** QED
+
+lemmaRepeat x =
+  dAxiom_eq (itail (irepeat x)) (irepeat x) (\k -> _lemmaRepeatK k x)
 
 ---------------------------------------------------------
 -- eqK properties for IStreams.
+
+{-@ assume dAxiom_eq :: xs:_ -> ys:_
+                     -> (k:Nat -> {eqK k xs ys}) -> {xs = ys} @-}
+dAxiom_eq :: Eq a => IStream a -> IStream a -> (Int -> Proof) -> Proof
+dAxiom_eq _ _ _ = ()
+
+{-@ assume dAxiom_eq_r :: xs:_ -> ys:_ -> {v:Proof| xs = ys}
+                       -> k:Nat -> {eqK k xs ys} @-}
+dAxiom_eq_r :: Eq a => IStream a -> IStream a -> Proof -> Int -> Proof
+dAxiom_eq_r _ _ _ _ = ()
 
 {-@ reflect eqK @-}
 {-@ eqK :: k: Nat -> _ -> _ -> _ @-}
@@ -197,6 +223,11 @@ lemmaEqKTransitive k xxs@(ICons x xs) yys@(ICons y ys) zzs@(ICons z zs)
 
 {-@ type Nat = {v:Int | v >= 0}@-}
 
+{-@ assume dAxiom_trueStream :: x:_ -> (k:Nat -> {_trueStreamK k x})
+                      -> {trueStream x} @-}
+dAxiom_trueStream :: IStream a -> (Int -> Proof) -> Proof
+dAxiom_trueStream _ _ = ()
+
 {-@ reflect _trueStreamK @-}
 {-@ _trueStreamK :: k:Nat -> _ -> Bool /[k] @-}
 _trueStreamK :: Int -> IStream a -> Bool
@@ -228,6 +259,11 @@ _falseLemmaK k (ICons s ss)
   =   False ? _falseLemmaK (k-1) ss
   *** QED
 
+
+{-@ assume dAxiom_below :: xs:_ -> ys:_ -> (k:Nat -> {_belowK k xs ys})
+                        -> {below xs ys} @-}
+dAxiom_below :: Ord a => IStream a -> IStream a -> (Int -> Proof) -> Proof
+dAxiom_below _ _ _ = ()
 
 {-@ reflect _belowK @-}
 {-@ _belowK :: Nat -> _ -> _ -> _ @-}
@@ -276,6 +312,11 @@ _lemmaRepeatK k x | k == 0
     ? lemmaEqKReflexive k xs
   *** QED
   where xs = irepeat x
+
+{-@ assume dAxiom_nneg :: xs:IStream Int
+                       -> (k:Nat -> {nnegK k xs}) -> {nneg xs} @-}
+dAxiom_nneg :: IStream Int -> (Int -> Proof) -> Proof
+dAxiom_nneg _ _ = ()
 
 {-@ reflect nnegK @-}
 {-@ nnegK :: Nat -> _ -> _ @-}
