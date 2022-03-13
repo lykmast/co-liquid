@@ -15,19 +15,25 @@ Nil `append` ys         = ys
 
 {-@ appendIsAssociative :: xs:_ -> ys:_ -> zs:_
      -> {append (append xs ys) zs = append xs (append ys zs)}  @-}
-appendIsAssociative :: LList a -> LList a -> LList a -> Proof
-appendIsAssociative Nil ys zs
-  =   (Nil `append` ys) `append` zs
-  === ys `append` zs
-  === Nil `append` (ys `append` zs)
-  *** QED
+appendIsAssociative :: Eq a => LList a -> LList a -> LList a -> Proof
+-- appendIsAssociative Nil ys zs
+--   =   (Nil `append` ys) `append` zs
+--   === ys `append` zs
+--   === Nil `append` (ys `append` zs)
+--   *** QED
+--
+-- appendIsAssociative xxs@(Cons x xs) ys zs
+--   =   (xxs `append` ys) `append` zs
+--   === Cons x (xs `append` ys) `append` zs
+--     ? appendIsAssociative xs ys zs
+--   === xxs `append` (ys `append` zs)
+--   *** QED
 
-appendIsAssociative xxs@(Cons x xs) ys zs
-  =   (xxs `append` ys) `append` zs
-  === Cons x (xs `append` ys) `append` zs
-    ? appendIsAssociative xs ys zs
-  === xxs `append` (ys `append` zs)
-  *** QED
+appendIsAssociative xs ys zs
+  = dAxiom_eq (append (append xs ys) zs)
+              (append xs (append ys  zs))
+              (\k -> _appendIsAssociativeK k xs ys zs)
+
 
 {-@ reflect isInfiniteLList @-}
 isInfiniteLList :: LList a -> Bool
@@ -43,6 +49,12 @@ isFiniteLList = not . isInfiniteLList
 -- eqK properties for LLists.
 
 {-@ type Nat = {v:Int | v >= 0}@-}
+
+
+{-@ assume dAxiom_eq :: xs:_ -> ys:_ -> (k:Nat -> {eqK k xs ys})
+                     -> {xs = ys} @-}
+dAxiom_eq :: Eq a => LList a -> LList a -> (Int -> Proof) -> Proof
+dAxiom_eq _ _ _ = ()
 
 {-@ reflect eqK @-}
 {-@ eqK :: k: Nat -> _ -> _ -> _ @-}
@@ -158,6 +170,12 @@ _appendIsAssociativeK k xxs@(Cons x xs) ys zs
     ? _appendIsAssociativeK (k-1) xs ys zs
   *** QED
 
+{-@ reflect _isInfiniteK @-}
+{-@ _isInfiniteK :: Nat -> _ -> _ @-}
+_isInfiniteK :: Int -> LList a -> Bool
+_isInfiniteK 0 _           = True
+_isInfiniteK _ Nil         = False
+_isInfiniteK k (Cons _ xs) = _isInfiniteK (k-1) xs
 ---------------------------------------------------------
 {-@ reflect not @-}
 not :: Bool -> Bool
