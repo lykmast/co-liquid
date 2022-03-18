@@ -244,14 +244,15 @@ _trueLemmaK k (ICons s ss)
     ? _trueLemmaK (k-1) ss
   *** QED
 
--- code below will (fortunately) not typecheck without assume.
+-- code below will (fortunately) not typecheck without ignore.
 -- That is because _falseLemmaK can not be proven for k == 0.
 -- Note that we have to call the prefix method _falseLemmaK in the
 --   inductive step. That is not true for every coinductive method.
 --   If there was a call to a coinductive method that belongs to another
 --   cluster (~not mutually recursive with the current one) then we would
 --   leave the call as is.
-{-@ assume _falseLemmaK :: k:Nat -> s:_ -> {false} @-}
+{-@ ignore _falseLemmaK @-}
+{-@ _falseLemmaK :: k:Nat -> s:_ -> {false} @-}
 _falseLemmaK :: Int -> IStream a -> Proof
 _falseLemmaK k (ICons s ss)
   | k <= 0 = ()
