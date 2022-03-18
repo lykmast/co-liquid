@@ -8,4 +8,5 @@ Quick explanation about the files here:
 - `CoList.hs` - Sized lazy lists.
 - `List.hs` - Alternative implementation of sized lazy lists.
 - `BF.hs` - Breadth first labeling of infinite trees.
+- `StreamProofs.hs` - An attempt at some proofs for sized streams.
 
