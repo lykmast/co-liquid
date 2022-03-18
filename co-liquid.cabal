@@ -24,6 +24,7 @@ library
       SizedTypes.List
       SizedTypes.Size
       SizedTypes.Stream
+      SizedTypes.StreamProofs
       SizedTypes.TelfordTurner
       Streams
   other-modules:
