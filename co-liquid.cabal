@@ -18,7 +18,6 @@ library
       IStream
       LList
       Paulson
-      SizedStreamProofs
       SizedTypes.BF
       SizedTypes.CoList
       SizedTypes.List
