@@ -10,20 +10,20 @@ data List a = Cons a (List a) | Nil
 emp Nil = True
 emp _   = False
 
-{-@ measure size :: List a -> Size @-}
--- inf: is defined for infinite depth.
-{-@ measure inf  :: List a -> Bool @-}
+{-@ measure lsize :: List a -> Size @-}
+-- linf: is defined for infinite depth.
+{-@ measure linf  :: List a -> Bool @-}
 
-{-@ type ListI a = {xs:List a| inf xs} @-}
+{-@ type ListI a = {xs:List a| linf xs} @-}
 
--- ListG: list with size greater than S
-{-@ type ListG a S = {xs:List a| size xs >= S || inf xs} @-}
--- ListS: list with size equal to S
-{-@ type ListS a S = {xs:List a| size xs  = S} @-}
+-- ListG: list with lsize greater than S
+{-@ type ListG a S = {xs:List a| lsize xs >= S || linf xs} @-}
+-- ListS: list with lsize equal to S
+{-@ type ListS a S = {xs:List a| lsize xs  = S} @-}
 -- ListNE: non-empty list
 {-@ type ListNE a  = {xs:List a| not (emp xs)} @-}
 
-{-@ assume mkNil :: {n:_| n = Nil && inf n} @-}
+{-@ assume mkNil :: {n:_| n = Nil && linf n} @-}
 mkNil :: List a
 mkNil = Nil
 
@@ -45,8 +45,8 @@ mkCons i fx fxs = Cons (fx 0) (fxs 0)
 
 {-@ assume out :: forall <p::a -> Bool>
                 . j:Size
-               -> {xs:ListNE a<p> | j < size xs || inf xs}
-               -> (_, {v:ListS a<p> j |inf xs ==> inf v})
+               -> {xs:ListNE a<p> | j < lsize xs || linf xs}
+               -> (_, {v:ListS a<p> j |linf xs ==> linf v})
 @-}
 out :: Size -> List a -> (a, List a)
 out _ Nil         = undefined
@@ -54,7 +54,7 @@ out _ (Cons x xs) = (x, xs)
 
 {-@ head :: forall <p::a -> Bool>
           . j:Size
-         -> {xs:ListNE a<p> | j < size xs || inf xs}
+         -> {xs:ListNE a<p> | j < lsize xs || linf xs}
          -> a<p>
 @-}
 head :: Size -> List a -> a
@@ -62,16 +62,16 @@ head j = fst . out j
 
 {-@ tail :: forall <p::a -> Bool>
           . j:Size
-         -> {xs:ListNE a<p> | j < size xs || inf xs}
-         -> {v:ListS a<p> j | inf xs ==> inf v}
+         -> {xs:ListNE a<p> | j < lsize xs || linf xs}
+         -> {v:ListS a<p> j | linf xs ==> linf v}
 @-}
 tail :: Size -> List a -> List a
 tail j xs = snd $ out j xs
 
-{-@ headi :: forall <p::a->Bool>. {xs:ListNE a<p>|inf xs} -> a<p> @-}
+{-@ headi :: forall <p::a->Bool>. {xs:ListNE a<p>|linf xs} -> a<p> @-}
 headi = head 0
 
-{-@ taili :: forall <p::a->Bool>. {xs:ListNE a<p>|inf xs}
+{-@ taili :: forall <p::a->Bool>. {xs:ListNE a<p>|linf xs}
                                -> ListI a<p> @-}
 taili = tail 0
 
