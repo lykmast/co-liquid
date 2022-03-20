@@ -104,6 +104,8 @@ toggle i = mkStream i (const 0) $ \j ->
 
 -- In paperfolds one unfolding of merge is necessary
 --    to prove termination of paperfolds.
+-- The original definition is
+-- paperfolds = merge toggle paperfolds
 {-@ paperfolds :: i:Size -> StreamG _ i @-}
 paperfolds :: Num a =>  Size -> Stream a
 paperfolds i = mkStream i (\j -> hd j (toggle i)) $
