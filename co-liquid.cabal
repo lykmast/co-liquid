@@ -22,6 +22,7 @@ library
       SizedTypes.BF
       SizedTypes.CoList
       SizedTypes.List
+      SizedTypes.ListProofs
       SizedTypes.Size
       SizedTypes.Stream
       SizedTypes.StreamProofs

@@ -9,4 +9,4 @@ Quick explanation about the files here:
 - `List.hs` - Alternative implementation of sized lazy lists.
 - `BF.hs` - Breadth first labeling of infinite trees.
 - `StreamProofs.hs` - An attempt at some proofs for sized streams.
-
+- `ListProofs.hs` - Proofs for sized lists.
