@@ -10,3 +10,4 @@ Quick explanation about the files here:
 - `BF.hs` - Breadth first labeling of infinite trees.
 - `StreamProofs.hs` - An attempt at some proofs for sized streams.
 - `ListProofs.hs` - Proofs for sized lists.
+- `ReflectedStream.hs` - Reflection of sized streams and proofs.

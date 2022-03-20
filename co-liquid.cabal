@@ -23,6 +23,7 @@ library
       SizedTypes.CoList
       SizedTypes.List
       SizedTypes.ListProofs
+      SizedTypes.ReflectedStream
       SizedTypes.Size
       SizedTypes.Stream
       SizedTypes.StreamProofs
