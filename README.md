@@ -60,7 +60,7 @@ In the above example we notice that the termination metric is *only* applied to 
 ### Co-predicates
 Co-predicates describe properties of co-datatypes. Co-predicates must be monotonic in order to guarantee existence of greatest fix-point. This is enforced by syntactic restriction on the form of the body of co-predicates:
  - 1. Intra-cluster calls of co-predicates must appear only in *positive* positions (i.e. as non negated atoms).
- - 2. To guarantee soundness (?) they must also appeat in *co-friendly* positions (i.e. in negation normal form under existential quantification the quantification must be over a finite range - probably not relevant in Haskell).
+ - 2. To guarantee soundness (?) they must also appear in *co-friendly* positions (i.e. in negation normal form under existential quantification the quantification must be over a finite range - probably not relevant in Haskell).
 
 e.g
 
