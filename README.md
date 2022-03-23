@@ -7,12 +7,10 @@ I write here:
  - my take on the implementation of these features with Liquid Haskell.
 
 ## 1. [Co-induction Simply](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/coinduction.pdf)
-Automatic Co-inductive Proofs in a Program Verifier
-K. Rustan M. Leino Michał Moskal"
+>Automatic Co-inductive Proofs in a Program Verifier
+K. Rustan M. Leino Michał Moskal
 
-Keyword summary: Parametric co-induction, No copatterns, decreases clause, syntactic guard, recursive/co-recursive calls.
-
-This paper describes the coinduction implementation in Dafny. The technique is what is described as "parametric coinduction" where coinductive proofs/predicates/functions are transformed (automatically) to inductive ones with the use of a parameter k:Nat (essentialy coinductive objects are syntactic sugar for their inductive counterparts).
+This paper describes the coinduction implementation in Dafny. The technique is what is described as "parametric coinduction" where coinductive proofs/predicates are transformed (automatically) to inductive ones with the use of a parameter k:Nat (essentialy coinductive objects are syntactic sugar for their inductive counterparts).
 
 ### Co-datatypes
 Same syntax as datatypes. Semantically they define the greatest fixpoint of the given definition. No grounding checks for codatatypes in contrast to datatypes (check that there is a way to construct a value from the ground up). 
@@ -61,8 +59,8 @@ In the above example we notice that the termination metric is *only* applied to 
 
 ### Co-predicates
 Co-predicates describe properties of co-datatypes. Co-predicates must be monotonic in order to guarantee existence of greatest fix-point. This is enforced by syntactic restriction on the form of the body of co-predicates:
- - 1. Intra-cluster calls of co-predicates must appear only in *positive* positions (i.e. as non negated atoms).
- - 2. To guarantee soundness (?) they must also appear in *co-friendly* positions (i.e. in negation normal form under existential quantification the quantification must be over a finite range - probably not relevant in Haskell).
+ - Intra-cluster calls of co-predicates must appear only in *positive* positions (i.e. as non negated atoms).
+ - To guarantee soundness (?) they must also appear in *co-friendly* positions (i.e. in negation normal form under existential quantification the quantification must be over a finite range - probably not relevant in Haskell).
 
 e.g
 
