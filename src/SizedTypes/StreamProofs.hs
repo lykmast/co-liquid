@@ -46,6 +46,8 @@ tl (Cons _ xs) = xs
 -- thP args = pS i args (\j -> {- proof of c1 args -} ? ps j)
 --                      (\j -> {- proof of c2 args -} ? ps j)
 -- ```
+-- As examples of such co-predicates we have bisim/= for bisimilarity
+-- and belowS/below for lexicographic comparison of streams.
 
 {-@ assume bisim :: i:Size
                  -> xs:_
@@ -145,7 +147,7 @@ theoremBelowSquare i xs = belowS i xs (mult xs xs) thHead thTail
       =   mult xs xs
       === Cons (hd xs * hd xs) (mult (tl xs) (tl xs))
 
-
+-- trueStream is another (trivial) co-predicate.
 {-@ reflect trueStream @-}
 trueStream xs = trueStream (tl xs)
 
