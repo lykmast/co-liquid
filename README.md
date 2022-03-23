@@ -2,7 +2,9 @@
 Coinduction in Liquid Haskell
 
 
-I will write here summaries of coinduction papers in terms of how they implement various features (i.e. proofs, termination etc.). These are not all-inclusive; I keep mainly what I think is pertinent to the co-liquid project.
+I write here:
+ - summaries of coinduction papers in terms of how they implement various features (i.e. proofs, termination etc.). These are not all-inclusive; I keep mainly what I think is pertinent to the co-liquid project.
+ - my take on the implementation of these features with Liquid Haskell.
 
 ## 1. [Co-induction Simply](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/coinduction.pdf)
 Automatic Co-inductive Proofs in a Program Verifier
@@ -76,9 +78,15 @@ Co-predicate declarations also define a prefix predicate (a finite unrolling of 
   - adding a case for `k==0` for which the prefix predicate results to true.
 Note that equality must also be transformed to prefix form i.e `s==t` becomes `eqK k s t`.
 
-Below is the theorem that connects co-predicates with prefix predicates:
+Below is the axiom that connects co-predicates with prefix predicates ported to Liquid Haskell (and generalized for a predicate q):
 
-`forall x. Q(x) <=> forall k. _Qk(x).`
+```haskell
+{-@ assume daxiom_q :: x:_ -> (k:Nat -> {_qK k x}) -> {q x} @-}
+daxiom_q _ _ = ()
+
+{-@ assume daxiom_q_r :: x:_ -> {q x} -> k:Nat -> {_qK k x} @-}
+daxiom_q_r _ _ = ()
+```
 
 ### Co-methods
 Co-methods are coinductive proofs. As with co-predicates, co-methods define prefix methods. A cluster containing a co-method must only contain co-methods and prefix methods. Both co-methods and prefix methods are always ghosts (their code is noly relevant to the verifier and not part of the executable).
@@ -88,6 +96,61 @@ A prefix method is constructed by a co-method by:
   - replacing in the comethod's postcondition co-predicates (that are in positive co-friendly positions) with prefix predicates that have `k` as the prefix length parameter(!!not in the precondition).
   - replace intra-cluster calls with the corresponding prefix method with `k-1` as the prefix length. Note that non-intra-cluster calls are not replaced. Also we can still use prefix versions explicitly in comethods (or even lfp theorems; e.g. `lemmaTailSubStreamK` from [Filter.hs](src/Filter.hs)).
   - making the body's execution conditional on `k /= 0`. For `k == 0` the proof will be trivial because of prefix predicates.
+
+
+### Proof example
+
+As an example of proofs and predicates encoded with this method in Liquid Haskell we provide the `thMergeEvensOdds` and the equality predicate that it uses:
+
+```haskell
+{-@ assume dAxiom_eq :: xs:_ -> ys:_
+                     -> (k:Nat -> {eqK k xs ys}) -> {xs = ys} @-}
+dAxiom_eq :: Eq a => IStream a -> IStream a -> (Int -> Proof) -> Proof
+dAxiom_eq _ _ _ = ()
+
+{-@ assume dAxiom_eq_r :: xs:_ -> ys:_ -> {v:Proof| xs = ys}
+                       -> k:Nat -> {eqK k xs ys} @-}
+dAxiom_eq_r :: Eq a => IStream a -> IStream a -> Proof -> Int -> Proof
+dAxiom_eq_r _ _ _ _ = ()
+
+{-@ reflect eqK @-}
+{-@ eqK :: k: Nat -> _ -> _ -> _ @-}
+eqK :: (Eq a) => Int -> IStream a -> IStream a -> Bool
+eqK 0 _ _ = True
+eqK k (ICons a as) (ICons b bs) = a == b && eqK (k-1) as bs
+
+{-@ _lemmaEvenOddK :: k: Nat -> xs:_ -> {eqK k (merge (odds xs) (evens xs)) xs} @-}
+_lemmaEvenOddK :: (Eq a) => Int -> IStream a -> Proof
+_lemmaEvenOddK 0 s
+  =   eqK 0 (merge (odds s) (evens s)) s
+  *** QED
+_lemmaEvenOddK k (ICons x xs)
+  =   eqK k (merge (odds (ICons x xs)) (evens (ICons x xs))) (ICons x xs)
+  === eqK k (merge (ICons x (odds (itail xs))) ((odds . itail) (ICons x xs))) (ICons x xs)
+  === eqK k (merge (ICons x ((odds . itail) xs)) (odds xs)) (ICons x xs)
+  === eqK k (ICons x (merge (odds xs) (evens xs))) (ICons x xs)
+  === eqK (k-1) (merge (odds xs) (evens xs)) xs
+    ? _lemmaEvenOddK (k-1) xs
+  *** QED
+
+
+{-@ lemmaEvenOdd :: xs:_ -> {merge (odds xs) (evens xs) = xs} @-}
+lemmaEvenOdd :: Eq a => IStream a -> Proof
+-- lemmaEvenOdd (ICons x xs)
+--   =   merge (odds (ICons x xs)) (evens (ICons x xs))
+--   === merge (ICons x (odds (itail xs))) ((odds . itail) (ICons x xs))
+--   === merge (ICons x ((odds . itail) xs)) (odds xs)
+--   === ICons x (merge (odds xs) (evens xs))
+--     ? lemmaEvenOdd xs
+--   === ICons x xs
+--   *** QED
+
+lemmaEvenOdd xs = dAxiom_eq (merge (odds xs) (evens xs)) xs
+                            (\k -> _lemmaEvenOddK k xs)
+
+```
+
+More examples can be found in the [src](src) directory.
 
 ### Limitations
 Termination cannot be proven for some functions i.e
@@ -112,244 +175,36 @@ To sum up: termination/productivity checks for functions are achieved through:
   - co-recursion in part of the co-inductive type (e.g. tail of stream).
   - decreases clause (manually added with liquidAssert) in inductive calls.
 
-### TODO for Co-induction Simply
-- A way to exclude co-recursive calls from termination checks e.g in `fivesUp` above.
-- A way to reference full co-inductive lemmas/predicates (not just prefixed versions).
-- (Not strictly relevant to co-liquid) Is there a way to reflect `filter'` (from [Filter.hs](src/Filter.hs) along with proof terms? 
-
-## 2. [Well-founded recursion with copatterns and sized types](https://www.cambridge.org/core/services/aop-cambridge-core/content/view/39794AEA4D0F5003C8E9F88E564DA8DD/S0956796816000022a.pdf/well-founded-recursion-with-copatterns-and-sized-types.pdf)
+## 2. Co-Induction with sized types
+This approach follows Agda's implementation of co-induction as described in [Well-founded recursion with copatterns and sized types](https://www.cambridge.org/core/services/aop-cambridge-core/content/view/39794AEA4D0F5003C8E9F88E564DA8DD/S0956796816000022a.pdf/well-founded-recursion-with-copatterns-and-sized-types.pdf) and [MiniAgda: Integrating Sized and Dependent Types](https://arxiv.org/abs/1012.4896).
 
 Sizes are ordinals including an `ω : ω >= i forall i`.
 
-This part of the paper gives a high-level idea of size based termination checking:
+This part of the paper gives a high-level idea of size based termination checking, while explaining the definitions of `zipWith` and `fib`:
 
+```agda
+zipWith : ∀i∞. |i| ⇒ ∀A:∗. ∀B:∗. ∀C:∗.
+(A → B → C) → Streami A → Streami B → Streami C
+zipWith i A B C f s t .head j = f (s .head j) (t .head j)
+zipWith i A B C f s t .tail j = zipWith j A B C f (s .tail j) (t .tail j)
+
+fib : ∀i. |i| ⇒ Streami
+fib i .head j = 0
+fib i .tail j .head k = 1
+fib i .tail j .tail k = zipWith k (+) (fib k) (fib j .tail k)
+```
 >When we check a corecursive definition such as the second clause of `zipWith`, we start with traversing the lhs. We first introduce assumption `i≤∞` into the context and now hit the measure annotation `|i|` in the type. At this point, we introduce the assumption `zipWith : ∀j≤∞. |j|<|i| ⇒ ∀A:∗. ∀B:∗. ∀C:∗. (A → B → C) → StreamjA → StreamjB → StreamjC` which will be used to check the recursive call on the rhs. It has a constraint `|j| < |i|`, a lexicographic comparison of size expression tuples (which here just means `j < i`), that is checked before applying `zipWith j` to `A`. Continued checking of the lhs introduces further assumptions `A, B, C : ∗`, `f : A → B → C`, `s : StreamiA`,` t : StreamiB`, and` j < i`. Checking the rhs succeeds since the constraint `|j| < |i|` is satisfied and `s .tail j : StreamjA` and `t .tail j : StreamjB`
 The paper has also co-patterns, which I have not used here. I have instead converted all co-patterns to regular patterns.
 
-*Pseudo-haskell below.*
+### Implementation
+In general what we need to emulate co-pattern behaviour is for constructors to *provide* a smaller ordinal at each level (analogously to lhs destructors) and for destructors to *need* a smaller ordinal (like rhs destructors in Agda). Also we must restrict functions to recurse only with smaller ordinals, but that is taken care of by the normal termination checking that Liquid Haskell has.
 
+Here we have implemented the above behaviour in Liquid Haskell by hard-coding size properties on constructors and destructors. To see how stream constructors/destructors are implemented visit [Stream.hs](src/SizedTypes/Stream.hs).
 
-### Infinite Streams
+With this system in place we can write all the examples from the original paper in Liquid Haskell and get them checked for productivity.
 
-```haskell
-data IStream{i} a = ICons{i,(νj<i)} {ihead :: a, itail:: (IStream{j} a)}
-```
 
-ICons provides a new `j` the relationship `i>j` and makes it available downstream.
-
-```haskell
-ICons{i,(νj<i)} :: a -> IStream{j} a -> IStream{i} a
-```
-
-
-`ihead`, `itail` need a witness `j>i` that in `itail` serves also as the size of the result:
-
-```haskell
-ihead{i,j(j<i)} :: IStream{i} a -> a
-itail{i,j(j<i)} :: IStream{i} a -> IStream{j} a
-```
-
-e.g `xs` has depth/size: `k < j < i = size ys`
-
-```haskell
-ys = a `ICons{i,j}` (b `ICons{j,k}` xs)
-```
-
-Here in `zipWith` and `repeat`, `ICons{i,j}` creates `j,i>j` and makes them available for `ihead`, `itail` and `zipWith`.
-
-```haskell
-repeat{i} :: a -> IStream{i} a
-repeat{i} x = x `ICons{i,j}` repeat{j} x
-
-zipWith{i} :: (a->b->c) -> IStream{i} a -> IStream{i} b -> IStream{i} c
-zipWith{i} f as bs = 
-  f (ihead{i,j} as) (ihead{i,j} bs)
-  `ICons{i,j}` zipWith{j} f (itail{i,j} as) (itail{i,j} bs)
-
-
-fib{i} :: IStream{i} Int
-fib{i} =
-  0 `ICons{i,j}` (1 `ICons{j,k}` zipWith{k} fib{k} (itail{j,k} fib{j}))
-```
-
-The following wrong `zipWith'` will not typecheck because there is not an ordinal available that can be placed at `?`.
-
-```haskell
-zipWith'{i} f as bs = 
-  f (ihead{j,?} (itail{i,j} as)) (ihead{j,?} (itail{i,j} bs)) 
-  `ICons{i,j}` zipWith'{j} f (itail{i,j} as) (itail{i,j} bs)
-```
-
-
-### CoLists
-
-```haskell
-data CoList{i} a = MCons{i,(νj<i)}{out :: Maybe(a, CoList{j} a)}
-
-MCons{i,(νj<i)} :: Maybe (a, CoList{j} a) -> CoList{i} a
-out{i,j(j<i)} :: CoList{i} a -> Maybe(a, CoList{j} a)
-
-safeHead{i,j(j<i)} :: CoList{i} a -> Maybe a
-safeHead{i,j} = fmap fst . out{i,j}
-
-safeTail{i,j(j<i)} :: CoList{i} a -> Maybe (CoList{j} a)
-safeTail{i,j} = fmap snd . out{i,j}
-
-repeat'{i} :: a -> CoList{i} a
-repeat'{i} x = MCons{i,j} $ Just (x, repeat'{j} x)
-
-
-fmap1 :: (a -> c) -> Maybe (a,b) -> Maybe (c,b)
-fmap1 = fmap . first
-
-fmap2 :: (b -> d) -> Maybe (a,b) -> Maybe (a,d)
-fmap2 = fmap . second
-
-
-unfold{i} :: (s -> Maybe (a,s)) -> s -> CoList{i} a
-unfold{i} f s = MCons{i,j} $ fmap2 (unfold{j} f) (f{i,j} s)
-
-repeatUnfold :: a -> CoList{ω} a
-repeatUnfold a = unfold{ω} (\() -> Just(a,())) ()
-
-
-map{i} :: (a -> b) -> CoList{i} a -> CoList{i} b
-map{i} f (MCons{i,j} (Just (x,xs)))
-  = MCons{i,j} (Just (f x, map{j} f xs))
-map{i} _ (MCons Nothing)
-  = MCons Nothing
-```
-
-We can implement `map` with `unfold` if we type `unfold` more precisely:
-
-```haskell
-unfold{i} :: (Λ j k<j. s{j} -> Maybe (a,s{k})
-          -> (Λ j. s{j})
-          -> CoList{i} a
-unfold{i} f s = MCons{i,j} $ fmap2 (unfold{j} f) (f{i,j} s)
-
-map{i} f = unfold{i} (\{i,j<i} s -> fmap1 f (out{i,j} s{i}))
-```
-
-
-Below we use LLists which are isomorphic to CoLists but with more familiar syntax:
-
-```haskell
-data LList{i} = Cons{i,j} {head :: a, tail :: (List{j} a)} | Nil
-```
-
-Here `head`, `tail` and `Cons` are similar to `ihead`, `itail` and `ICons` respectively.
-
-```haskell
-repeat{i} :: a -> LList{i} a
-repeat{i} x = x `Cons{i,j}` repeat{j} x
-
-map{i} :: (a -> b) -> LList{i} a -> LList{i} b
-map{i} _ Nil         = Nil
-map{i} f (Cons x xs) = f x `Cons{i,j}` map{j} f xs
-```
-
-### Label trees
-
-```haskell
-type SS{i} a = IStream{i} (IStream{ω} a)
-
-data Tree{i} = Node{i,(νj<i)}
-    { label :: a
-    , left  :: Tree{j} a,
-    , right :: Tree{j} a
-    }
-
-label{i,j<i} :: Tree{i} a -> a
-left{i,j<i}  :: Tree{i} a -> Tree{j} a
-right{i,j<i} :: Tree{i} a -> Tree{j} a
-
-data Result{i} a = Res{i} {tree :: Tree{i} a, rest :: SS{i} a}
-
-
-tree{i} :: Result{i} a -> Tree{i} a
-rest{i} :: Result{i} a -> SS{i} a
-```
-
-This takes a stream of streams and returns a tree that has each level labeled by its correspondent stream.
-
-```haskell
-bfs{i} :: SS{i} a -> Result{i} a
-bfs{i} ((v `ICons{ω}` vs) `ICons{i,j}` vss) 
-  =  Res{i} (Node{i,j} v (tree{j} p1) (tree{j} p2)) $ vs `ICons{i,j}` rest p2
-  where
-    p1 = bfs{j} vss
-    p2 = bfs{j} (rest{j} p1)
-```
-
-Here `p1` and `p2` definitions reference `j (<i)` which becomes available to them from `Node{i,j}` and `ICons{i,j}` resp. at their call site.
-
-The size `j` is not important in itself. What we care about is the constraint `j<i`.
-
-The algorithm is completed with `bf` which takes a stream of labels and returns a tree labeled by the stream in breadth-first order:
-
-```haskell
-bf{i} :: IStream{ω} a -> Tree{i} a
-bf{i} vs = rest{i} (bfp{i} vs) 
-  where bfp{i} :: IStream{ω} a -> Result{i} a
-        bfp{i} vs = bfs{i} (vs `ICons{i,j}` (rest{j} (bfp{j} vs)))
-
-```
-
-Note that in the rhs of the where clause `vss` can be safely cast to a smalller depth `j` (from the lhs it has depth `i > j`).
-
-### Other examples
-
-Odds and evens can only work on fully defined streams. All destructors without an ordinal use `ω` implicitly. Ordinals `i` and `j` are only used to prove productivity.
-
-```haskell
-odds{i} :: IStream{ω} a -> IStream{ω} a
-odds{i} xs = ihead xs `ICons{i,j}` odds{j} (itail (itail xs))
-
-evens :: IStream{ω} a -> IStream{ω} a
-evens = odds . itail
-
-merge{i} :: IStream{i} a -> IStream{i} -> IStream{i} a
-merge{i} xs ys = ihead{i,j} xs `ICons{i,j}` merge{j} ys (itail{i,j} xs)
-```
-
-Here `paperfolds` is more difficult to typecheck (despite being productive). We can typecheck it by unfolding `merge` once in its definition.
-
-```haskell
-toggle{i} :: IStream{i} a
-toggle{i} = 1 `Cons{i,j}` (0 `Cons{j,k}` toggle{j})
-
--- This would not typecheck because paperfolds does not have a
--- terminating measure.
-paperfolds{i} :: IStream{i} a
-paperfolds{i} = merge{i} toggle{i+1} paperfolds{?}
-
--- This is the version that typechecks (applying one 
---   unfolding of merge).
-paperfolds{i} = 0 `ICons{i,j}` merge{j} paperfolds{j} 
-                                        (itail{i,j} toggle{i})
-```
-
-Mixed induction and coinduction works by using the ordinal and the inductive termination metric as a lexicographic termination metric.
-
-```haskell
-{-@ fivesUp{i} :: n:_ -> IStream {v:_ | v >= n} / [i, fivesUpTerm n] @-}
-fivesUp :: Int -> IStream Int
--- the first clause has i<j (guarded by coinductive constructor)
-fivesUp n | n `mod` 5 == 0 = n `ICons{i,j}` fivesUp{j} (n+1)
--- the second clause has decreasing fivesUpTerm n.
-          | otherwise      = fivesUp (n+1)
-
-{-@ inline fivesUpTerm @-}
-fivesUpTerm :: Int -> Int
-fivesUpTerm n = 4 - ((n-1) `mod` 5)
-```
-
----
-
-I have implemented the above functions in Liquid Haskell. The relevant files are [Size.hs](src/SizedTypes/Size.hs), [Stream.hs](src/SizedTypes/Stream.hs), [CoList.hs](src/SizedTypes/CoList.hs), [List.hs](src/SizedTypes/List.hs) and [BF.hs](src/SizedTypes/BF.hs).
-
-Here is an excerpt from `Stream.hs` with the definition of `fib` and `zipWith`:
+Below are the `zipWith` and `fib` definitions as found in [Stream.hs](src/SizedTypes/Stream.hs).
 
 ```haskell
 {-@ zipWith :: i:Size -> _
@@ -369,56 +224,154 @@ fib i = mkStream i (const 0)
           $ \k -> zipWith k (+) (fib k) (tl k (fib j))
 ```
 
+In the [SizedTypes](src/SizedTypes) directory there are other examples including functions on lazy lists, streams and (infinite) trees. A decently complex example can be found in [BF.hs](src/SizedTypes/BF.hs), where we implement a breadth first labeling of an infinite binary tree with labels from an infinite stream.
+
+
 ### Theorems & Proofs
-
-In order to implement theorems and proofs we need to:
- 1. find a way to implement coinductive predicates; that is predicates that are of the form `CoindType -> Bool`. The problem here is that such predicates are not terminating since (in the general case) we need to observe an infinite object to produce a result.
- 2. find a way to implement coinductive proofs on those predicates. This is not straight-forward because we need to provide a context where a coinductive proof can co-recurse on itself (i.e. provide an ordinal...).
-
-An idea is instead of having predicates `:: a -> Bool`, which would not terminate, to use predicates that can be partially observed i.e. embeded in a co-inductive structure. This would also offer a context for co-inductive proofs to recurse. Implementation from [SizedStreamProofs.hs](src/SizedStreamProofs.hs):
+We use `bisim` from MiniAgda to encode bisimilarity (and through it equality) for co-inductive types. The general idea is that, if all the observables of two co-inductive objects (e.g `hd`, `tl` for streams) are equal, so are the whole objects. In Liquid Haskell we encode bisimilarity like so ([StreamProofs.hs](src/SizedTypes/StreamProofs.hs)):
 
 ```haskell
-data BS = Bool :&& BS | Bool :|| BS
-
-{-@ reflect evalBS @-}
-evalBS :: BS -> Bool
-evalBS (b :&& rest) = b && evalBS rest
-evalBS (b :|| rest) = b || evalBS rest
-
-
-{-@ reflect belowS @-}
-belowS :: Ord a => IStream a -> IStream a -> BS
-belowS (ICons x xs) (ICons y ys)
-  = x <= y :&& (x < y :|| belowS xs ys)
-
-{-@ theoremBelowMult :: a:IStream Int -> {evalBS (belowS a (mult a a))}@-}
-theoremBelowMult :: IStream Int -> ()
-theoremBelowMult (ICons a as)
-  = evalBS (
-      belowS (ICons a as) (mult (ICons a as) (ICons a as))
-  === belowS (ICons a as) (ICons (a * a) (mult as as))
-  === (a <= a*a :&& ( a < a*a :|| belowS as (mult as as))))
-  ===
-    evalBS (a < a*a :|| (belowS as (mult as as) ? theoremBelowMult as))
-  *** QED
+{-@ assume bisim :: i:Size
+                 -> xs:_
+                 -> ys:_
+                 -> ({j:Size| j<i} -> {hd xs = hd ys})
+                 -> ({j:Size| j<i} -> {tl xs = tl ys})
+                 -> {xs = ys}
+@-}
+bisim :: Size -> Stream a -> Stream a
+      -> (Size -> Proof) -> (Size -> Proof)
+      -> Proof
+bisim i xs ys p1 p2 = ()
 ```
 
-However `evalBS` as it is can prove `{false}`:
+Here, inspired from MiniAgda, we provide the individual proof functions with a `j<i` so as to allow recursion. This works as a productivity/soundness checker just like in co-inductive constructors. With this system in place we can now perform co-induction by recursing on a proof using the smaller ordinal provided by the co-predicate (i.e. `bisim`). 
+
+To demonstrate the use of `bisim`, I have added below the `thMergeEvensOdds` proof taken from [StreamProofs.hs](src/SizedTypes/StreamProofs.hs):
 
 ```haskell
-{-@ reflect falsesOr @-}
-falsesOr = False :|| falsesOr
+{-@ reflect odds @-}
+odds xs = Cons (hd xs) (odds . tl.tl $xs)
 
-{-@ lemmaFalse :: _ -> {false} @-}
-lemmaFalse (ICons x xs)
-  =   evalBS falsesOr
-  === evalBS (False :|| (falsesOr ? lemmaFalse xs))
-  *** QED
+{-@ reflect evens @-}
+evens = odds . tl
+
+{-@ reflect merge @-}
+merge xs ys = Cons (hd xs) $ merge ys (tl xs)
+{-@ thMergeEvensOdds :: i:Size -> xs:_
+                     -> {merge (odds xs) (evens xs) = xs}
+@-}
+thMergeEvensOdds i xs
+  = bisim i (merge (odds xs) (evens xs)) xs thHead thTail
+  where
+    thHead j
+      =   hd (merge (odds xs) (evens xs))
+      === hd (thMerge j)
+      === hd (Cons (hd xs) (tl xs))
+      === hd xs
+      *** QED
+    thTail j
+      =   tl (merge (odds xs) (evens xs))
+      === tl (thMerge j)
+      === tl (Cons (hd xs) (tl xs))
+      === tl xs
+      *** QED
+
+    thMerge j
+      =   merge (odds xs) (evens xs)
+      === Cons (hd (odds xs)) (merge (evens xs) (tl (odds xs)))
+      === Cons (hd (Cons (hd xs) (odds .tl.tl$xs)))
+               (merge (odds . tl $xs) (tl (odds xs)))
+      === Cons (hd xs) (merge (odds (tl xs)) (odds . tl $tl xs))
+      === Cons (hd xs) (merge (odds (tl xs)) (evens (tl xs)))
+        ? thMergeEvensOdds j (tl xs)
+      === Cons (hd xs) (tl xs)
+``` 
+
+As we can see the proof is clear and very near to what we would write with pen and paper. 
+
+Note that in proofs we use definitions without sizes. This is not problematic since the termination/productivity of objects is not necessary in the proofs. The only thing we use sizes for is to establish the productivity of the proof itself, via sizes `j<i` provided by `bisim`.
+
+We can also define other co-predicates (such as `bisim`). Other co-predicates are only briefly mentioned in MiniAgda, so what follows is an interpolation from the definition of `bisim`.
+
+Basically, to translate a co-predicate (predicate on co-inductive objects) `p` into this system we add an alternate version `pS` which results from the initial predicate as follows:
+   - we give an assumed signature to `pS`
+   - we add all the arguments of `p`
+   - for every claim `c` on the observations (on streams: `hd`, `tl`) of our co-inductive object (stream) in `p` we add a proof term in the signature of `pS`; that is a term `({j:Size|j<i} -> {c})`
+   - we add as a return type the term `{p ...args}`
+Then in a proof we can prove `p` using `pS i` (co)recursively. In simplified form:
+
+```haskell
+p  :: args -> Bool
+p = c1 args && c2 args
+{-@ assume pS :: i:Size -> args
+              -> ({j:Size|j<i} -> {c1 args})
+              -> ({j:Size|j<i} -> {c2 args}) -> {p args}
+@-}
+ps _ = ()
+
+{-@ thP :: i:Size -> args -> {p args} @-}
+thP args = pS i args (\j -> {- proof of c1 args -} ? ps j)
+                     (\j -> {- proof of c2 args -} ? ps j)
 ```
 
-### TODO for sized types
+For example here is a predicate lexicographically comparing two streams:
+```haskell
+{-@ reflect below @-}
+below :: Stream Int -> Stream Int -> Bool
+below xs ys = hd xs <= hd ys
+            && ((hd xs == hd ys) `implies` below (tl xs) (tl ys))
 
-- Is this typing equivalent to having co-patterns?
-- Can sized types be encoded in Liquid Haskell? 
-I have provided an implementation; it remains to be seen if it is sound. Also I am not sure how to implement infinity.
-- Is there a way to make the predicate/proof implementation sound? 
+{-@ reflect implies @-}
+{-@ implies :: p:Bool -> q:Bool -> {v:_| v <=> (p => q)} @-}
+implies False _ = True
+implies _ True = True
+implies _ _ = False
+
+{-@ assume belowS :: i:Size
+                 -> xs:_
+                 -> ys:_
+                 -> ({j:Size| j<i} -> {hd xs <= hd ys})
+                 -> ({j:Size| j<i} -> { (hd xs == hd ys) =>
+                                        (below (tl xs) (tl ys)) })
+                 -> {below xs ys}
+@-}
+belowS :: Size -> Stream Int -> Stream Int
+      -> (Size -> Proof) -> (Size -> Proof)
+      -> Proof
+belowS i xs ys p1 p2 = ()
+```
+
+**Note:** We probably need some way to check that a predicate can be interpreted co-inductively. Since in MiniAgda there are no co-predicates (other than bisimilarity) we can use the criterion of monotonicity as per [Co-induction Simply](#co-predicates). 
+
+## Comparison of the two approaches
+Below there is a small comparison of how each approach handles co-recursion in functions and co-inductive proofs.
+
+### Functions
+
+In coinductive functions there is the consideration of productivity (from MiniAgda paper: "always yielding the next piece of the output in finite time"). 
+
+In the approach taken by Co-induction Simply, to ensure productivity/termination, functions are allowed to recurse either inductively with a decreasing metric or co-inductively by guarding the recursion with a co-constructor. This is achieved through a simple syntactic check. 
+
+Inductively recursive branches in co-inductive functions are thusly checked to eventually return to the co-recursive branch, which in turn is guaranteed to always provide a piece of output (through the co-constructor guard) and only then (co-)recurse.
+
+In Agda's approach the co-recursing is conversely ensured by tracking guardedness through sized types. We use sizes to encode the depth at which a co-inductive object is defined and we modify the constructors and destructors to expect/provide smaller sizes as witnesses of depth. Also, sizes are set up to be used as termination metrics. These two properties of sizes allow them to act as a productivity metric.
+
+Agda's types are significantly more expressive than Dafny's syntactic check, as partially demonstrated by the way `zipWith` and `fib` can be implemented in [Dafny](#limitations) and in [Agda](#implementation).
+
+
+### Proofs
+Co-inductive proofs are not well-founded; they don't have a ground truth to eliminate towards. That disallows us from implementing them with normal recursion since we don't have a base case. What we need to ensure is that a proof is productive in some sense.
+
+Dafny tackles this by transforming co-induction to induction on a natural parameter which can be interpreted as the depth of the proof or predicate. Predicates on depth 0 serve as our base case (trivial) and every co-recursion is transformed to a recursion on the one-less-deep proof.
+
+In (Mini)Agda this notion of depth is already captured by sizes, so we can seamlessly use sizes for proofs as well (after setting up the necessary rules). What Agda goes on to express is that we can evoke a proof recursively only if we have provided a partial reason for which the proof holds for our current depth and only in that context can we dive deeply.
+
+In both approaches, proofs are ensured to be well constructed via termination checks on the depth metric. The resulting proofs are in both cases quite near to pen-and-paper proofs.
+
+### Overall
+
+Sized types seem to be more expressive in dealing with co-induction than the parametric approach proposed by Co-induction Simply. 
+
+The main disadvantage of sized types (as currently implemented) is the cluttering of function definitions with size annotations for productivity and the resulting need to rewrite definitions without sizes in order to obtain readable proofs.
+
+There are more arguments to be made regarding the way each approach will be implemented (in terms of desugaring, syntactic checks etc.), but that requires a slightly deeper consideration.
