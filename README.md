@@ -1,10 +1,11 @@
 # co-liquid
-Coinduction in Liquid Haskell
+>Coinduction in Liquid Haskell
 
+Examples of what this implementation includes are:
+  - **Support for co-inductive proofs**, such as the [merge evens odds proof](#theorems-proofs).
+  - **Checks for productivity of corecursive functions**, such as [`fib` and `zipWith`](#implementation)
 
-I write here:
- - summaries of coinduction papers in terms of how they implement various features (i.e. proofs, termination etc.). These are not all-inclusive; I keep mainly what I think is pertinent to the co-liquid project.
- - my take on the implementation of these features with Liquid Haskell.
+This implementation is *heavily* inspired by the respective implementations of Coinduction in Dafny and Agda. What follows is a summary of those two approaches, along with the elements we adopt, and a small [comparison](#comparison-of-the-two-approaches).
 
 ## 1. [Co-induction Simply](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/coinduction.pdf)
 >Automatic Co-inductive Proofs in a Program Verifier
