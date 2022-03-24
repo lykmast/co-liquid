@@ -10,7 +10,7 @@ I write here:
 >Automatic Co-inductive Proofs in a Program Verifier
 K. Rustan M. Leino Michał Moskal
 
-This paper describes the coinduction implementation in Dafny. The technique is what is described as "parametric coinduction" where coinductive proofs/predicates are transformed (automatically) to inductive ones with the use of a parameter k:Nat (essentialy coinductive objects are syntactic sugar for their inductive counterparts).
+This paper describes the coinduction implementation in Dafny. The technique is what is described as "parametric coinduction" where coinductive proofs/predicates are transformed (automatically) to inductive ones with the use of a parameter k:Nat (essentially coinductive objects are syntactic sugar for their inductive counterparts).
 
 ### Co-datatypes
 Same syntax as datatypes. Semantically they define the greatest fixpoint of the given definition. No grounding checks for codatatypes in contrast to datatypes (check that there is a way to construct a value from the ground up). 
@@ -29,7 +29,7 @@ They are subject to termination checks. No other obligation.
 
 #### Co-recursive calls
 To ensure that they are consistent they must only occur in productive positions (it must be possible to determine each successive piece of the resulting co-datatype value after a finite amount of work). This condition is satisfied if every co-recursive call is syntactically *guarded* by a constructor of a co-datatype.
-Co-recursive calls are exempt from termination checks. They also must be lazy (which in haskell is not a problem but in LH we have to denote it).
+Co-recursive calls are exempt from termination checks. They also must be lazy (which in Haskell is not a problem but in LH we have to denote it).
 Each function can have both recursive and co-recursive calls.
 
 e.g. from [IStream.hs](src/IStream.hs)
@@ -87,7 +87,7 @@ daxiom_q_r _ _ = ()
 ```
 
 ### Co-methods
-Co-methods are coinductive proofs. As with co-predicates, co-methods define prefix methods. A cluster containing a co-method must only contain co-methods and prefix methods. Both co-methods and prefix methods are always ghosts (their code is noly relevant to the verifier and not part of the executable).
+Co-methods are coinductive proofs. As with co-predicates, co-methods define prefix methods. A cluster containing a co-method must only contain co-methods and prefix methods. Both co-methods and prefix methods are always ghosts (their code is only relevant to the verifier and not part of the executable).
 
 A prefix method is constructed by a co-method by:
   - adding a `k:Nat` parameter to denote prefix length.
@@ -167,11 +167,11 @@ cannot be proven to terminate. In Dafny there is an `{:abstemious}` annotation w
 
 Abstemious functions, together with a new computation of a guaranteed minimum number of co-constructor wrappers, expand the number of functions that are considered to be productive. As a result, many new interesting co-recursive functions can be written."
 
-`zipWith` can be so annotated and typechecks in dafny but it is achieved through syntactic checks and is less general than e.g. sized types.
+`zipWith` can be so annotated and typechecks in Dafny but it is achieved through syntactic checks and is less general than e.g. sized types.
 
 To sum up: termination/productivity checks for functions are achieved through:
   - co-recursion in part of the co-inductive type (e.g. tail of stream).
-  - decreases clause (manually added with liquidAssert) in inductive calls.
+  - decreases clause (manually added with `liquidAssert`) in inductive calls.
 
 ## 2. Co-Induction with sized types
 This approach follows Agda's implementation of co-induction as described in [Well-founded recursion with copatterns and sized types](https://www.cambridge.org/core/services/aop-cambridge-core/content/view/39794AEA4D0F5003C8E9F88E564DA8DD/S0956796816000022a.pdf/well-founded-recursion-with-copatterns-and-sized-types.pdf) and [MiniAgda: Integrating Sized and Dependent Types](https://arxiv.org/abs/1012.4896).
@@ -195,7 +195,7 @@ fib i .tail j .tail k = zipWith k (+) (fib k) (fib j .tail k)
 The paper has also co-patterns, which I have not used here. I have instead converted all co-patterns to regular patterns.
 
 ### Implementation
-In general what we need to emulate co-pattern behaviour is for constructors to *provide* a smaller ordinal at each level (analogously to lhs destructors) and for destructors to *need* a smaller ordinal (like rhs destructors in Agda). Also we must restrict functions to recurse only with smaller ordinals, but that is taken care of by the normal termination checking that Liquid Haskell has.
+In general, what we need to emulate co-pattern behaviour is for constructors to *provide* a smaller ordinal at each level (analogously to lhs destructors) and for destructors to *need* a smaller ordinal (like rhs destructors in Agda). Also we must restrict functions to recurse only with smaller ordinals, but that is taken care of by the normal termination checking that Liquid Haskell has.
 
 Here we have implemented the above behaviour in Liquid Haskell by hard-coding size properties on constructors and destructors. To see how stream constructors/destructors are implemented visit [Stream.hs](src/SizedTypes/Stream.hs).
 
