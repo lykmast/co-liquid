@@ -2,7 +2,7 @@
 >Coinduction in Liquid Haskell
 
 Examples of what this implementation includes are:
-  - **Support for co-inductive proofs**, such as the [merge evens odds proof](#theorems-proofs).
+  - **Support for co-inductive proofs**, such as the [merge evens odds proof](#theorems--proofs).
   - **Checks for productivity of corecursive functions**, such as [`fib` and `zipWith`](#implementation)
 
 This implementation is *heavily* inspired by the respective implementations of Coinduction in Dafny and Agda. What follows is a summary of those two approaches, along with the elements we adopt, and a small [comparison](#comparison-of-the-two-approaches).
