@@ -4,7 +4,7 @@
 {-@ LIQUID "--prune-unsorted" @-} -- or else weird errors :/
 module SizedTypes.StreamProofs where
 
-import Prelude hiding (repeat, zipWith, map)
+import Prelude hiding (repeat, zipWith, map, not)
 import Language.Haskell.Liquid.ProofCombinators
 import SizedTypes.Size
 
@@ -166,3 +166,122 @@ trueStreamS i xs p1 p2 = ()
 {-@ thTrueStream :: i:Size -> xs:_ -> {trueStream xs} @-}
 thTrueStream i xs = trueStreamS i xs (\j -> ())
                                      (\j -> thTrueStream j (tl xs))
+
+-----------------------------------------------
+-- | f morse == morse
+-- This example is from `Durel and Lucanu 2009`
+
+{-@ reflect map @-}
+map :: (a -> b) -> Stream a -> Stream b
+map f xs = f (hd xs) :> map f (tl xs)
+
+{-@ reflect morse @-}
+morse :: Stream Bool
+morse = False :> True :> merge (tl morse) (map not (tl morse))
+
+{-@ reflect f @-}
+f :: Stream Bool -> Stream Bool
+f xs = hd xs :> not (hd xs) :> f (tl xs)
+
+{-@ reflect not @-}
+not True = False
+not False = True
+
+-- | Note that `theoremFMorse` does not use coinduction (no self call)
+-- so there is no need to use `bisim`.
+{-@ theoremFMorse :: {f morse = morse} @-}
+theoremFMorse
+  =   f morse
+  === hd fMorse :> ht :> tt
+  *** QED
+  where
+    tt
+      =   tl tlFMorse
+      === f (tl morse)
+        ? theoremFMerge 0 (tl morse)
+      === merge (tl morse) (map not (tl morse))
+      === tl tlMorse
+
+    ht
+      =   hd tlFMorse
+      === True
+      === hd tlMorse
+
+    morse'
+      =   morse
+      === False :> True :> merge (tl morse) (map not (tl morse))
+
+    fMorse
+      =   f morse
+      === hd morse :> not (hd morse') :> f (tl morse)
+      === hd morse :> True :> f (tl morse)
+
+    tlFMorse = tl fMorse === True :> f (tl morse)
+
+    tlMorse = tl morse' === True :> merge (tl morse) (map not (tl morse))
+
+{-@ theoremFMerge :: i:Size -> xs:_
+                  -> {f xs = merge xs (map not xs)}
+@-}
+theoremFMerge i xs
+  = bisim i (f xs) (merge xs (map not xs)) thHead thTail
+  where
+    thHead _
+      =   hd (f xs)
+      === hd (hd xs :> not (hd xs) :> f (tl xs))
+      === hd xs
+      === hd mergeXsNotXs
+      *** QED
+
+    thTail j
+      =   tl mergeXsNotXs
+      === merge (map not xs) (tl xs)
+      === merge (not (hd xs) :> map not (tl xs)) (tl xs)
+      === not (hd xs) :> merge (tl xs) (map not (tl xs))
+        ? theoremFMerge j (tl xs)
+      === not (hd xs) :> f (tl xs)
+      === tl (f xs)
+      *** QED
+
+
+    mergeXsNotXs
+      =   merge xs (map not xs)
+      === hd xs :> merge (map not xs) (tl xs)
+
+{-@ theoremNotF :: i:Size -> xs:_
+                     -> {map not (f xs) = f (map not xs)}
+@-}
+theoremNotF i xs
+  = bisim i (map not (f xs)) (f (map not xs)) thHead thTail
+  where
+    mapNotFXS j
+      =   map not (f xs)
+      === map not (hd xs :> not (hd xs) :> f (tl xs))
+      === not (hd xs) :>
+        ( -- tail part expanded:
+             map not (not (hd xs) :> f (tl xs))
+         === not (not (hd xs)) :> map not (f (tl xs))
+         ?   theoremNotF j (tl xs)
+         === not (not (hd xs)) :> f (map not (tl xs))
+        )
+
+    thHead j
+      =   hd (mapNotFXS j)
+      === not (hd xs)
+      === hd (not (hd xs) :> map not (tl xs))
+      === hd (map not xs)
+      === hd (f (map not xs))
+      *** QED
+
+    thTail j
+      =   tl (mapNotFXS j)
+      === not ( -- expanding this term:
+                   not (hd xs)
+               === hd (not (hd xs) :> map not (tl xs))
+               === hd (map not xs)
+              )
+                                :> f (map not (tl xs))
+      === not (hd (map not xs)) :> f (tl (map not xs))
+      === tl (f (map not xs))
+      *** QED
+
