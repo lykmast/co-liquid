@@ -13,13 +13,14 @@ import SizedTypes.Size
 --   than they would be.
 -- Sizes in reflected functions are irrelevant if they have been already
 -- accepted as productive/terminating.
-data Stream a = Cons a (Stream a)
+data Stream a = a :> Stream a
+infixr 5 :>
 
 {-@ measure hd @-}
-hd (Cons x _ ) = x
+hd (x :> _ ) = x
 
 {-@ measure tl @-}
-tl (Cons _ xs) = xs
+tl (_ :> xs) = xs
 
 -- Basically, to translate a co-predicate (predicate on streams) `p`
 --   to this system we add an alternate version `pS` which results from
@@ -62,13 +63,13 @@ bisim :: Size -> Stream a -> Stream a
 bisim i xs ys p1 p2 = ()
 
 {-@ reflect odds @-}
-odds xs = Cons (hd xs) (odds . tl.tl $xs)
+odds xs = hd xs :> (odds . tl . tl) xs
 
 {-@ reflect evens @-}
 evens = odds . tl
 
 {-@ reflect merge @-}
-merge xs ys = Cons (hd xs) $ merge ys (tl xs)
+merge xs ys = hd xs :> merge ys (tl xs)
 {-@ thMergeEvensOdds :: i:Size -> xs:_
                      -> {merge (odds xs) (evens xs) = xs}
 @-}
@@ -78,25 +79,25 @@ thMergeEvensOdds i xs
     thHead j
       =   hd (merge (odds xs) (evens xs))
       === hd (thMerge j)
-      === hd (Cons (hd xs) (tl xs))
+      === hd (hd xs :> tl xs)
       === hd xs
       *** QED
     thTail j
       =   tl (merge (odds xs) (evens xs))
       === tl (thMerge j)
-      === tl (Cons (hd xs) (tl xs))
+      === tl (hd xs :> tl xs)
       === tl xs
       *** QED
 
     thMerge j
       =   merge (odds xs) (evens xs)
-      === Cons (hd (odds xs)) (merge (evens xs) (tl (odds xs)))
-      === Cons (hd (Cons (hd xs) (odds .tl.tl$xs)))
-               (merge (odds . tl $xs) (tl (odds xs)))
-      === Cons (hd xs) (merge (odds (tl xs)) (odds . tl $tl xs))
-      === Cons (hd xs) (merge (odds (tl xs)) (evens (tl xs)))
+      === hd (odds xs) :> merge (evens xs) (tl (odds xs))
+      === hd (hd xs :> (odds . tl.tl) xs) :>
+               merge (odds . tl $ xs) (tl (odds xs))
+      === hd xs :> merge (odds (tl xs)) (odds . tl $tl xs)
+      === hd xs :> merge (odds (tl xs)) (evens (tl xs))
         ? thMergeEvensOdds j (tl xs)
-      === Cons (hd xs) (tl xs)
+      === hd xs :> tl xs
 
 -- should be accepted only with lazy annotation. Now passes because of
 -- no-adt.
@@ -126,7 +127,7 @@ belowS i xs ys p1 p2 = ()
 
 {-@ reflect mult @-}
 mult :: Stream Int -> Stream Int -> Stream Int
-mult xs ys = Cons (hd xs * hd ys) $ mult (tl xs) (tl ys)
+mult xs ys = hd xs * hd ys :> mult (tl xs) (tl ys)
 
 
 {-@ theoremBelowSquare :: i:Size -> xs:_ -> {below xs (mult xs xs)} @-}
@@ -145,7 +146,7 @@ theoremBelowSquare i xs = belowS i xs (mult xs xs) thHead thTail
       *** QED
     thMult j
       =   mult xs xs
-      === Cons (hd xs * hd xs) (mult (tl xs) (tl xs))
+      === hd xs * hd xs :> mult (tl xs) (tl xs)
 
 -- trueStream is another (trivial) co-predicate.
 {-@ reflect trueStream @-}
