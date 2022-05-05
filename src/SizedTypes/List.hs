@@ -38,7 +38,7 @@ mkICons = Cons
                    . i:Size
                   -> ({j:Size|j<i} -> a<p>)
                   -> ({j:Size|j<i} -> ListG a<p> j)
-                  -> v:ListS a<p> i
+                  -> v:ListG a<p> i
 @-}
 mkCons :: Size -> (Size -> a) -> (Size -> List a) -> List a
 mkCons i fx fxs = Cons (fx 0) (fxs 0)
@@ -46,7 +46,7 @@ mkCons i fx fxs = Cons (fx 0) (fxs 0)
 {-@ assume out :: forall <p::a -> Bool>
                 . j:Size
                -> {xs:ListNE a<p> | j < lsize xs || linf xs}
-               -> (_, {v:ListS a<p> j |linf xs ==> linf v})
+               -> (_, {v:ListG a<p> j |linf xs ==> linf v})
 @-}
 out :: Size -> List a -> (a, List a)
 out _ Nil         = undefined
@@ -63,7 +63,7 @@ head j = fst . out j
 {-@ tail :: forall <p::a -> Bool>
           . j:Size
          -> {xs:ListNE a<p> | j < lsize xs || linf xs}
-         -> {v:ListS a<p> j | linf xs ==> linf v}
+         -> {v:ListG a<p> j | linf xs ==> linf v}
 @-}
 tail :: Size -> List a -> List a
 tail j xs = snd $ out j xs
@@ -75,7 +75,7 @@ headi = head 0
                                -> ListI a<p> @-}
 taili = tail 0
 
-{-@ repeat :: i:Size -> _ -> ListS _ i @-}
+{-@ repeat :: i:Size -> _ -> ListG _ i @-}
 repeat :: Size -> a -> List a
 repeat i x = mkCons i (const x) $ \j -> repeat j x
 
