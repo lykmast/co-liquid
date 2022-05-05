@@ -15,7 +15,7 @@ data Stream a = Cons a (Stream a)
 {-@ measure size :: Stream a -> Size @-}
 
 {-@ type StreamS a S = {v:Stream a| size v  = S } @-}
-{-@ type StreamG a S = {v:Stream a| size   v >= S } @-}
+{-@ type StreamG a S = {v:Stream a| size   v >= S || inf v } @-}
 {-@ type StreamI a   = {v:Stream a| inf  v      } @-}
 
 {-@ hd :: s:Size -> {xs:_| s < size xs || inf xs} -> _ @-}
