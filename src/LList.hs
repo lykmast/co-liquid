@@ -34,11 +34,61 @@ appendIsAssociative xs ys zs
               (append xs (append ys  zs))
               (\k -> _appendIsAssociativeK k xs ys zs)
 
+{-@ _appendIsAssociativeK :: k: Nat -> xs:_ -> ys:_ -> zs:_
+     -> {eqK k (append (append xs ys) zs)
+               (append xs (append ys zs))}
+@-}
+_appendIsAssociativeK
+    :: Eq a
+    => Int
+    -> LList a
+    -> LList a
+    -> LList a
+    -> Proof
+_appendIsAssociativeK 0 xs ys zs
+  =   eqK 0 ((xs `append` ys) `append` zs)
+             (xs `append` (ys `append` zs))
+  *** QED
+_appendIsAssociativeK k Nil ys zs
+  =   eqK k ((Nil `append` ys) `append` zs)
+             (Nil `append` (ys `append` zs))
+  === eqK k (ys `append` zs) (Nil `append` (ys `append` zs))
+  === eqK k (ys `append` zs) (ys `append` zs)
+    ? lemmaEqKReflexive k (ys `append` zs)
+  *** QED
+
+_appendIsAssociativeK k xxs@(Cons x xs) ys zs
+  =   eqK k ((xxs `append` ys) `append` zs)
+             (xxs `append` (ys `append` zs))
+  === eqK k (Cons x (xs `append` ys) `append` zs)
+            (Cons x xs `append` (ys `append` zs))
+  === eqK k (Cons x (xs `append` ys `append` zs))
+            (Cons x (xs `append` (ys `append` zs)))
+  -- Mind that the rhs must also advance so that
+  --    a Cons is available at both sides and eqK can be applied.
+  -- The line below is automatically derived.
+  -- === (x == x && eqK (k-1) (xs `append`  ys `append` zs)
+  --                          (xs `append` (ys `append` zs)))
+    ? _appendIsAssociativeK (k-1) xs ys zs
+  *** QED
+
 
 {-@ reflect isInfiniteLList @-}
 isInfiniteLList :: LList a -> Bool
 isInfiniteLList Nil         = False
 isInfiniteLList (Cons _ xs) = isInfiniteLList xs
+
+{-@ assume daxiom_isInfinite :: xs:_ -> (k:Nat -> {_isInfiniteK k xs})
+                                     -> {isInfiniteLList xs} @-}
+daxiom_isInfinite :: LList a -> (Int -> Proof) -> Proof
+daxiom_isInfinite xs p = ()
+
+{-@ reflect _isInfiniteK @-}
+{-@ _isInfiniteK :: Nat -> _ -> _ @-}
+_isInfiniteK :: Int -> LList a -> Bool
+_isInfiniteK 0 _           = True
+_isInfiniteK _ Nil         = False
+_isInfiniteK k (Cons _ xs) = _isInfiniteK (k-1) xs
 
 {-@ reflect isFiniteLList @-}
 isFiniteLList :: LList a -> Bool
@@ -128,54 +178,6 @@ lemmaEqKTransitive k xxs@(Cons x xs) yys@(Cons y ys) zzs@(Cons z zs)
   *** QED
 lemmaEqKTransitive k xs ys zs = (eqK k xs ys && eqK k ys zs) *** QED
 
-
----------------------------------------------------------
--- coinductive to inductive proofs.
-
-{-@ _appendIsAssociativeK :: k: Nat -> xs:_ -> ys:_ -> zs:_
-     -> {eqK k (append (append xs ys) zs)
-               (append xs (append ys zs))}
-@-}
-_appendIsAssociativeK
-    :: Eq a
-    => Int
-    -> LList a
-    -> LList a
-    -> LList a
-    -> Proof
-_appendIsAssociativeK 0 xs ys zs
-  =   eqK 0 ((xs `append` ys) `append` zs)
-             (xs `append` (ys `append` zs))
-  *** QED
-_appendIsAssociativeK k Nil ys zs
-  =   eqK k ((Nil `append` ys) `append` zs)
-             (Nil `append` (ys `append` zs))
-  === eqK k (ys `append` zs) (Nil `append` (ys `append` zs))
-  === eqK k (ys `append` zs) (ys `append` zs)
-    ? lemmaEqKReflexive k (ys `append` zs)
-  *** QED
-
-_appendIsAssociativeK k xxs@(Cons x xs) ys zs
-  =   eqK k ((xxs `append` ys) `append` zs)
-             (xxs `append` (ys `append` zs))
-  === eqK k (Cons x (xs `append` ys) `append` zs)
-            (Cons x xs `append` (ys `append` zs))
-  === eqK k (Cons x (xs `append` ys `append` zs))
-            (Cons x (xs `append` (ys `append` zs)))
-  -- Mind that the rhs must also advance so that
-  --    a Cons is available at both sides and eqK can be applied.
-  -- The line below is automatically derived.
-  -- === (x == x && eqK (k-1) (xs `append`  ys `append` zs)
-  --                          (xs `append` (ys `append` zs)))
-    ? _appendIsAssociativeK (k-1) xs ys zs
-  *** QED
-
-{-@ reflect _isInfiniteK @-}
-{-@ _isInfiniteK :: Nat -> _ -> _ @-}
-_isInfiniteK :: Int -> LList a -> Bool
-_isInfiniteK 0 _           = True
-_isInfiniteK _ Nil         = False
-_isInfiniteK k (Cons _ xs) = _isInfiniteK (k-1) xs
 ---------------------------------------------------------
 {-@ reflect not @-}
 not :: Bool -> Bool

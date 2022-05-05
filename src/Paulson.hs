@@ -42,63 +42,6 @@ theoremLmapAfter f g xs =
   dAxiom_eq (lmap (f . g) xs) (lmap f (lmap g xs))
             (\k -> _theoremLmapAfterK k f g xs)
 
-
-{-@ reflect iterates @-}
-{-@ lazy iterates @-}
-iterates :: (a -> a) -> a -> LList a
-iterates f m = Cons m (iterates f (f m))
-
-
-{-@ theoremLmapIterates :: f:_ -> m:_ -> {lmap f (iterates f m) = iterates f (f m)} @-}
-theoremLmapIterates :: Eq a => (a -> a) -> a -> Proof
--- theoremLmapIterates f m
---   =   lmap f (iterates f m)
---   === lmap f (m `Cons` iterates f (f m))
---   === f m `Cons` lmap f (iterates f (f m))
---     ? theoremLmapIterates f (f m)
---   === f m `Cons` iterates f (f (f m))
---   === iterates f (f m)
---   *** QED
-
-theoremLmapIterates f m =
-  dAxiom_eq (lmap f (iterates f m)) (iterates f (f m))
-            (\k -> _theoremLmapIteratesK k f m)
-
-{-@ theoremLmapIterates' :: f:_ -> m:_ -> {iterates f m = Cons m (lmap f (iterates f m))} @-}
-theoremLmapIterates' :: Eq a => (a -> a) -> a -> Proof
-theoremLmapIterates' f m = iterates f m ? theoremLmapIterates f m *** QED
-
-{-@ theoremLmapLinear :: f:_ -> xs:_ -> ys:{ys:_| ys = xs} -> {lmap f xs = lmap f ys} @-}
-theoremLmapLinear :: (a -> a) -> LList a -> LList a -> Proof
-theoremLmapLinear f xs ys = ()
-
-{-@ theoremLmapAppend :: f:_ -> m:_ -> n:_ -> {lmap f (append m n) = append (lmap f m) (lmap f n) } @-}
-theoremLmapAppend :: Eq b => (a -> b) -> LList a -> LList a -> Proof
--- theoremLmapAppend f Nil n
---   =   lmap f (append Nil n)
---   === lmap f n
---   === Nil `append` lmap f n
---   === lmap f Nil `append` lmap f n
---   *** QED
--- theoremLmapAppend f mms@(Cons m ms) n
---   =   lmap f (append mms n)
---   === lmap f (m `Cons` append ms n)
---   === f m `Cons` lmap f (append ms n)
---     ? theoremLmapAppend f ms n
---   === f m `Cons` append (lmap f ms) (lmap f n)
---   === (f m `Cons` lmap f ms) `append` lmap f n
---   === lmap f mms `append` lmap f n
---   *** QED
-
-theoremLmapAppend f m n
-  = dAxiom_eq (lmap f (append m n)) (append (lmap f m) (lmap f n))
-              (\k -> _theoremLmapAppendK k f m n)
-
-
-
----------------------------------------------------------
--- coinductive to inductive proofs.
-
 {-@ _theoremLmapAfterK :: k:Nat
                        -> f:_
                        -> g:_
@@ -132,6 +75,28 @@ _theoremLmapAfterK k f g xxs@(Cons x xs) | k > 0
     ? _theoremLmapAfterK (k-1) f g xs
   *** QED
 
+
+{-@ reflect iterates @-}
+{-@ lazy iterates @-}
+iterates :: (a -> a) -> a -> LList a
+iterates f m = Cons m (iterates f (f m))
+
+
+{-@ theoremLmapIterates :: f:_ -> m:_ -> {lmap f (iterates f m) = iterates f (f m)} @-}
+theoremLmapIterates :: Eq a => (a -> a) -> a -> Proof
+-- theoremLmapIterates f m
+--   =   lmap f (iterates f m)
+--   === lmap f (m `Cons` iterates f (f m))
+--   === f m `Cons` lmap f (iterates f (f m))
+--     ? theoremLmapIterates f (f m)
+--   === f m `Cons` iterates f (f (f m))
+--   === iterates f (f m)
+--   *** QED
+
+theoremLmapIterates f m =
+  dAxiom_eq (lmap f (iterates f m)) (iterates f (f m))
+            (\k -> _theoremLmapIteratesK k f m)
+
 {-@ _theoremLmapIteratesK :: k:Nat -> f:_ -> m:_
                           -> {eqK k (lmap f (iterates f m)) (iterates f (f m))}
 @-}
@@ -151,6 +116,14 @@ _theoremLmapIteratesK k f m
   --                              (iterates f (f (f m))))
     ? _theoremLmapIteratesK (k-1) f (f m)
   *** QED
+
+{-@ theoremLmapIterates' :: f:_ -> m:_ -> {iterates f m = Cons m (lmap f (iterates f m))} @-}
+theoremLmapIterates' :: Eq a => (a -> a) -> a -> Proof
+theoremLmapIterates' f m = iterates f m ? theoremLmapIterates f m *** QED
+
+{-@ theoremLmapLinear :: f:_ -> xs:_ -> ys:{ys:_| ys = xs} -> {lmap f xs = lmap f ys} @-}
+theoremLmapLinear :: (a -> a) -> LList a -> LList a -> Proof
+theoremLmapLinear f xs ys = ()
 
 {-@ _theoremLmapLinearK :: k:Nat -> f:_ -> xs:_
                         -> ys:{ys:_| xs = ys}
@@ -176,22 +149,28 @@ _theoremLmapLinearK k f xxs@(Cons x xs) yys@(Cons y ys)
   *** QED
 _theoremLmapLinearK k f xs ys = eqK k xs ys *** QED
 
--- {-@ _theoremLmapIteratesK' :: k:Nat -> f:_ -> m:_
---                            -> {eqK k (iterates f m) (Cons m (lmap f (iterates f m)))}
--- @-}
--- _theoremLmapIteratesK' :: (Eq a) => Int -> (a -> a) -> a -> Proof
--- _theoremLmapIteratesK' 0 f m
---   =   eqK 0 (iterates f m) (Cons m (lmap f (iterates f m)))
+
+{-@ theoremLmapAppend :: f:_ -> m:_ -> n:_ -> {lmap f (append m n) = append (lmap f m) (lmap f n) } @-}
+theoremLmapAppend :: Eq b => (a -> b) -> LList a -> LList a -> Proof
+-- theoremLmapAppend f Nil n
+--   =   lmap f (append Nil n)
+--   === lmap f n
+--   === Nil `append` lmap f n
+--   === lmap f Nil `append` lmap f n
 --   *** QED
--- _theoremLmapIteratesK' k f m
---   =   eqK k (iterates f m) (m `Cons` lmap f (iterates f m))
---   === eqK k (m `Cons` iterates f (f m)) (m `Cons` lmap f (iterates f m))
---   === eqK (k-1) (iterates f (f m)) (lmap f (iterates f m))
---     ? lemmaEqKCommutative (k-1) (iterates f (f m)) (lmap f (iterates f m))
---     ? _theoremLmapIteratesK (k-1) f m
+-- theoremLmapAppend f mms@(Cons m ms) n
+--   =   lmap f (append mms n)
+--   === lmap f (m `Cons` append ms n)
+--   === f m `Cons` lmap f (append ms n)
+--     ? theoremLmapAppend f ms n
+--   === f m `Cons` append (lmap f ms) (lmap f n)
+--   === (f m `Cons` lmap f ms) `append` lmap f n
+--   === lmap f mms `append` lmap f n
 --   *** QED
 
-
+theoremLmapAppend f m n
+  = dAxiom_eq (lmap f (append m n)) (append (lmap f m) (lmap f n))
+              (\k -> _theoremLmapAppendK k f m n)
 
 {-@ _theoremLmapAppendK :: k:Nat
                         -> f:_
@@ -225,4 +204,3 @@ _theoremLmapAppendK k f mms@(Cons m ms) n
             (f m `Cons` append (lmap f ms) (lmap f n))
     ? _theoremLmapAppendK (k-1) f ms n
   *** QED
-
