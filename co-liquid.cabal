@@ -15,8 +15,10 @@ extra-source-files:
 library
   exposed-modules:
       Filter
+      ISTR
       IStream
       LList
+      Overview
       Paulson
       SizedTypes.BF
       SizedTypes.CoList

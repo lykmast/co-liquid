@@ -1,5 +1,6 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--no-adt" @-}
+{-# LANGUAGE TupleSections #-}
 module IStream where
 
 import Language.Haskell.Liquid.ProofCombinators
@@ -287,6 +288,23 @@ _theoremBelowSquareK k (ICons a as)
         ((a == a*a) `implies` _belowK (k-1) as (mult as as)))
     ? _theoremBelowSquareK (k-1) as
   *** QED
+
+{-@ _lemmaEvenOddKP :: k: Nat -> xs:_ -> {eqK k (merge (odds xs) (evens xs)) xs} @-}
+_lemmaEvenOddKP :: (Eq a) => Int -> IStream a -> Proof
+_lemmaEvenOddKP 0 s
+  =   eqK 0 (merge (odds s) (evens s)) s
+  *** QED
+_lemmaEvenOddKP k (ICons x xs)
+  =   eqK k (merge (odds (ICons x xs)) (evens (ICons x xs))) (ICons x xs)
+  === eqK k (merge (ICons x (odds (itail xs))) ((odds . itail) (ICons x xs))) (ICons x xs)
+  === eqK k (merge (ICons x ((odds . itail) xs)) (odds xs)) (ICons x xs)
+  === eqK k (ICons x (merge (odds xs) (evens xs))) (ICons x xs)
+  === eqK (k-1) (merge (odds xs) (evens xs)) xs
+    ? _lemmaEvenOddKP (k-1) xs
+  *** QED
+
+{-@ infix ++++ @-}
+
 
 {-@ _lemmaEvenOddK :: k: Nat -> xs:_ -> {eqK k (merge (odds xs) (evens xs)) xs} @-}
 _lemmaEvenOddK :: (Eq a) => Int -> IStream a -> Proof
