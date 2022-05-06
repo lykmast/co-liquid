@@ -18,12 +18,9 @@ ihead (ICons x _)  = x
 {-@ measure itail @-}
 itail (ICons _ xs) = xs
 
-{- (===) :: Eq a 
-          => x:IStream a 
-          -> y:{At Int (IStream a) | eqK (at y) x (atVal y) } 
-          -> {r:IStream a | if atVal y == 0 then eqK (at y) x (atVal y) } @-}
-(===) :: Eq a => IStream a -> At Int (IStream a) -> IStream a 
-_ === (At i v) = v
+{-@ (===) :: x:a -> y:{a | x == y} -> {v:a | v == x && v == y} @-}
+(===) :: a -> a -> a   
+v === _ = v
 
 
 
@@ -53,7 +50,7 @@ odds (ICons x xs) = ICons x (odds (itail xs))
 
 {-@ reflect evens @-}
 evens :: IStream a -> IStream a
-evens = odds . itail
+evens xs = odds (itail xs)
 
 
 {-@ eeqq :: k:Nat -> x:IStream a ->  y:{IStream a | eqK k x y } -> {v:IStream a | eqK k x y } @-}
@@ -75,20 +72,21 @@ _lemmaEvenOddK 0 _ = undefined
 
 
 _lemmaEvenOddK k (x `ICons` xs)
-  =  eeqUn 
+  =   
   
-  (
-    ((
-    ((merge (odds (x `ICons` xs)) (evens (x `ICons` xs))) 
-   `eeq` k)
-      (merge (ICons x (odds (itail xs))) ((odds . itail) (x `ICons` xs))))
-   `eeq`) (k ? assertSTR ((odds . itail) (x `ICons` xs)) (odds xs )
-             ? assertSTR ((odds . itail) xs) (odds (itail xs))
-             ? assertSTR (odds (itail xs)) (evens xs)
-          )
-        (x `ICons` merge (odds xs) (evens xs)))
-   k 
-       (x `ICons` xs 
+  ((merge (odds (x `ICons` xs)) (evens (x `ICons` xs))
+  
+  === 
+  merge (ICons x (odds (itail xs))) ((odds . itail) (x `ICons` xs))
+  
+  === 
+  ICons x (merge (odds (itail (x `ICons` xs)))  (odds (itail xs)))
+
+  === 
+  ICons x (merge (odds xs) (evens xs))
+  )
+  `eeqUn` k) 
+  (x `ICons` xs 
        
        ? _lemmaEvenOddK (k-1) xs) -- eqK (k-1) (merge (odds xs) (evens xs)) xs
        -- itail (x `ICons` xs) == xs 
