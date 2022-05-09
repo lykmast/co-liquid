@@ -8,6 +8,13 @@ jobs:
           password: $DOCKERHUB_PASSWORD 
     
     steps:
+      - run:
+          name: Fix key error 
+          # from: https://forums.developer.nvidia.com/t/gpg-error-http-developer-download-nvidia-com-compute-cuda-repos-ubuntu1804-x86-64/212904/3
+          command: |
+            apt-key del 7fa2af80
+            apt-key adv --fetch-keys http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64/3bf863cc.pub
+
       - run: apt-get update && apt-get install -y git ssh unzip
 
       - run: 
