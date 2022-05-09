@@ -2,7 +2,7 @@
 {-@ LIQUID "--no-adt" @-}
 module IStream where
 
-import Language.Haskell.Liquid.ProofCombinators
+import Language.Haskell.Liquid.ProofCombinators hiding((***), QED)
 import Language.Haskell.Liquid.Prelude
 data IStream a = a :> IStream a
 infixr 5 :>
@@ -294,15 +294,18 @@ _lemmaEvenOddK :: (Eq a) => Int -> IStream a -> Proof
 _lemmaEvenOddK 0 s
   =   eqK 0 (merge (odds s) (evens s)) s
   *** QED
-_lemmaEvenOddK k (x :> xs)
-  =   eqK k (merge (odds (x :> xs)) (evens (x :> xs))) (x :> xs)
-  === eqK k (merge (x :> (odds (itail xs))) ((odds . itail) (x :> xs)))
-            (x :> xs)
-  === eqK k (merge (x :> (odds . itail) xs) (odds xs)) (x :> xs)
-  === eqK k (x :> merge (odds xs) (evens xs)) (x :> xs)
-  === eqK (k-1) (merge (odds xs) (evens xs)) xs
-    ? _lemmaEvenOddK (k-1) xs
+_lemmaEvenOddK k xxs@(x :> xs)
+  =
+  merge (odds xxs) (evens xxs)
+  === merge (x :> odds (itail xs))
+            ((odds . itail) xxs)
+  === merge (x :> (odds . itail) xs) (odds xs)
+  === x :> merge (odds xs) (evens xs)
+  =#= k #
+      x :> xs
+  ? _lemmaEvenOddK (k-1) xs
   *** QED
+
 
 {-@ _lemmaRepeatK :: k:Nat -> x:_ -> {eqK k (itail (irepeat x)) (irepeat x)} @-}
 _lemmaRepeatK k x | k == 0
@@ -349,3 +352,17 @@ implies _ _ = False
                        -> {fivesUpTerm (n+1) < fivesUpTerm n} @-}
 theoremFivesUpTerm :: Int -> Proof
 theoremFivesUpTerm _ = ()
+------------------------------------------------------------
+
+infix 0 ***
+
+data QED = QED
+_ *** QED = ()
+
+infixr 1 #
+(#) = ($)
+
+infix 2 =#=
+{-@ (=#=) :: x:IStream a -> k:{Nat | 0 < k } -> y:{IStream a | eqK (k-1) (itail x) (itail y) } -> {v:IStream a | eqK k x y && v == x } @-}
+(=#=) :: IStream a -> Int -> IStream a -> IStream a
+(=#=)  = undefined
