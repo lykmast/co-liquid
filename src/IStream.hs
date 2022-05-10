@@ -363,6 +363,7 @@ infixr 1 #
 (#) = ($)
 
 infix 2 =#=
-{-@ (=#=) :: x:IStream a -> k:{Nat | 0 < k } -> y:{IStream a | eqK (k-1) (itail x) (itail y) } -> {v:IStream a | eqK k x y && v == x } @-}
-(=#=) :: IStream a -> Int -> IStream a -> IStream a
-(=#=)  = undefined
+{-@ (=#=) :: Eq a => x:IStream a -> k:{Nat | 0 < k } -> y:{IStream a | eqK (k-1) (itail x) (itail y) && ihead x == ihead y } -> {v:IStream a | eqK k x y && v == x } @-}
+(=#=) :: Eq a => IStream a -> Int -> IStream a -> IStream a
+(=#=)  xxs@(x :> xs) k yys@(y :> ys) =
+  xxs ? (eqK k xxs yys === (x == y && eqK (k-1) xs ys) *** QED)
