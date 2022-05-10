@@ -14,7 +14,6 @@ extra-source-files:
 
 library
   exposed-modules:
-      IStream
       LList
       Paulson
       SizedTypes.BF
@@ -26,6 +25,7 @@ library
       SizedTypes.Stream
       SizedTypes.StreamProofs
       SizedTypes.TelfordTurner
+      Stream
       Streams
   other-modules:
       Paths_co_liquid

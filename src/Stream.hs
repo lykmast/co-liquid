@@ -1,6 +1,6 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--no-adt" @-}
-module IStream where
+module Stream where
 
 import Language.Haskell.Liquid.ProofCombinators hiding((***), QED)
 import Language.Haskell.Liquid.Prelude
