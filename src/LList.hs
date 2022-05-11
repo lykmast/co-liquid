@@ -2,13 +2,28 @@
 {-@ LIQUID "--no-adt"      @-}
 module LList where
 
-import Language.Haskell.Liquid.ProofCombinators
+import Language.Haskell.Liquid.ProofCombinators hiding (QED, (***))
 import Prelude hiding(not)
 
 -- lazy lists (possibly infinite)
 data LList a = a :| (LList a) | Nil
 infixr 5 :|
 {-@ infix :| @-}
+
+{-@ measure emp @-}
+emp Nil = True
+emp _   = False
+
+{-@ type NEList a = {v: LList a | not (emp v)} @-}
+
+{-@ measure hd @-}
+{-@ hd :: NEList _ -> _ @-}
+hd :: LList a -> a
+hd (x :| _) = x
+
+{-@ measure tl @-}
+{-@ tl :: NEList _ -> LList _ @-}
+tl (_ :| xs) = xs
 
 {-@ reflect append  @-}
 Nil `append` ys         = ys
@@ -157,18 +172,18 @@ _appendIsAssociativeK k Nil ys zs
   *** QED
 
 _appendIsAssociativeK k xxs@(x :| xs) ys zs
-  =   eqK k ((xxs `append` ys) `append` zs)
-             (xxs `append` (ys `append` zs))
-  === eqK k ((x :| xs `append` ys) `append` zs)
-            (x :| xs `append` (ys `append` zs))
-  === eqK k (x :| xs `append` ys `append` zs)
-            (x :| xs `append` (ys `append` zs))
+  =   (xxs `append` ys) `append` zs
+  === (x :| xs `append` ys) `append` zs
+  === x :| (xs `append` ys) `append` zs
+  =#= k #
+      x :| xs `append` (ys `append` zs)
+    ? _appendIsAssociativeK (k-1) xs ys zs
+  === (xxs `append` (ys `append` zs))
   -- Mind that the rhs must also advance so that
   --    a is :| available at both sides and eqK can be applied.
   -- The line below is automatically derived.
   -- === (x == x && eqK (k-1) (xs `append`  ys `append` zs)
   --                          (xs `append` (ys `append` zs)))
-    ? _appendIsAssociativeK (k-1) xs ys zs
   *** QED
 
 {-@ reflect _isInfiniteK @-}
@@ -178,7 +193,23 @@ _isInfiniteK 0 _           = True
 _isInfiniteK _ Nil         = False
 _isInfiniteK k (_ :| xs) = _isInfiniteK (k-1) xs
 ---------------------------------------------------------
+
 {-@ reflect not @-}
 not :: Bool -> Bool
 not False = True
 not True  = False
+------------------------------------------------------------
+
+infix 0 ***
+
+data QED = QED
+_ *** QED = ()
+
+infixr 1 #
+(#) = ($)
+
+infix 2 =#=
+{-@ (=#=) :: Eq a => x:NEList a -> k:{Nat | 0 < k } -> y:{NEList a | eqK (k-1) (tl x) (tl y) && hd x == hd y } -> {v:NEList a | eqK k x y && v == x } @-}
+(=#=) :: Eq a => LList a -> Int -> LList a -> LList a
+(=#=)  xxs@(x :| xs) k yys@(y :| ys) =
+  xxs ? (eqK k xxs yys === (x == y && eqK (k-1) xs ys) *** QED)
