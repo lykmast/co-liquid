@@ -15,6 +15,7 @@ extra-source-files:
 library
   exposed-modules:
       LList
+      Morse
       Paulson
       SizedTypes.BF
       SizedTypes.CoList
