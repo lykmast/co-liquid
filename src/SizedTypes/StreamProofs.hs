@@ -23,39 +23,56 @@ hd (x :> _ ) = x
 tl (_ :> xs) = xs
 
 -- Basically, to translate a co-predicate (predicate on streams) `p`
---   to this system we add an alternate version `pS` which results from
---   the initial predicate as follows:
+--   to this system we add an alternate version `pS`
+--   an uninterpreted measure `pI`
+--   and an axiom `pAxiom` binding `pI` with p,
+--   which result from the initial predicate as follows:
+--     - `pI` is of type :: Nat -> t, where t is the type of p.
 --     - we give an assumed signature to `pS`
 --     - we add all the arguments of `p`
 --     - for every claim `c` on the observations of our co-inductive
 --     object (stream) in `p` we add a proof term
 --     in the signature of `pS`; that is a term `({j:Size|j<i} -> {c})`
---     - we add as a return type the term `{p ...args}`
---  Then in a proof we can prove `p` using `pS i` (co)recursively.
+--     - we add as a return type the term `{pI i ...args}`
+--  Then in a proof we can prove `pI i` using `pS i` (co)recursively
+--  and finally `p` using `pAxiom`.
 --  In simplified form:
 --
 --  ```
 --  p  :: args -> Bool
 --  p = c1 args && c2 args
+--
+--  {-@ measure pI :: Nat -> args -> Bool @-}
 --  {-@ assume pS :: i:Size -> args
 --                -> ({j:Size|j<i} -> {c1 args})
---                -> ({j:Size|j<i} -> {c2 args}) -> {p args}
+--                -> ({j:Size|j<i} -> {c2 args}) -> {pI i args}
 --  @-}
---  ps _ = ()
+--  pS _ = ()
 --
--- {-@ thP :: i:Size -> args -> {p args} @-}
+--  {-@ assume pAxiom :: args -> (i:Nat -> {pI i args}) -> {p args} @-}
+--  pAxiom _ _ = ()
+--
+-- {-@ thPS :: i:Size -> args -> {pI i args} @-}
 -- thP args = pS i args (\j -> {- proof of c1 args -} ? ps j)
 --                      (\j -> {- proof of c2 args -} ? ps j)
+--
+-- {-@ thP :: args -> {p args} @-}
+-- thP args = pAxiom args (\i -> pS i args)
 -- ```
 -- As examples of such co-predicates we have bisim/= for bisimilarity
 -- and belowS/below for lexicographic comparison of streams.
+{-@ measure eqI :: Size -> Stream a -> Stream a -> Bool @-}
+
+{-@ assume eqAxiom :: xs:_ -> ys:_ -> (i:Size -> {eqI i xs ys}) -> {xs = ys} @-}
+eqAxiom :: Stream a -> Stream a -> (Size -> Proof) -> Proof
+eqAxiom _ _ _ = ()
 
 {-@ assume bisim :: i:Size
                  -> xs:_
                  -> ys:_
                  -> ({j:Size| j<i} -> {hd xs = hd ys})
-                 -> ({j:Size| j<i} -> {tl xs = tl ys})
-                 -> {xs = ys}
+                 -> ({j:Size| j<i} -> {eqI j (tl xs) (tl ys)})
+                 -> {eqI i xs ys}
 @-}
 bisim :: Size -> Stream a -> Stream a
       -> (Size -> Proof) -> (Size -> Proof)
@@ -70,34 +87,25 @@ evens = odds . tl
 
 {-@ reflect merge @-}
 merge xs ys = hd xs :> merge ys (tl xs)
-{-@ thMergeEvensOdds :: i:Size -> xs:_
-                     -> {merge (odds xs) (evens xs) = xs}
-@-}
-thMergeEvensOdds i xs
-  = bisim i (merge (odds xs) (evens xs)) xs thHead thTail
-  where
-    thHead j
-      =   hd (merge (odds xs) (evens xs))
-      === hd (thMerge j)
-      === hd (hd xs :> tl xs)
-      === hd xs
-      *** QED
-    thTail j
-      =   tl (merge (odds xs) (evens xs))
-      === tl (thMerge j)
-      === tl (hd xs :> tl xs)
-      === tl xs
-      *** QED
 
-    thMerge j
-      =   merge (odds xs) (evens xs)
-      === hd (odds xs) :> merge (evens xs) (tl (odds xs))
-      === hd (hd xs :> (odds . tl.tl) xs) :>
-               merge (odds . tl $ xs) (tl (odds xs))
-      === hd xs :> merge (odds (tl xs)) (odds . tl $tl xs)
-      === hd xs :> merge (odds (tl xs)) (evens (tl xs))
-        ? thMergeEvensOdds j (tl xs)
-      === hd xs :> tl xs
+{-@ thMergeEvensOdds :: xs:_ -> {merge (odds xs) (evens xs) = xs} @-}
+thMergeEvensOdds :: Stream a -> Proof
+thMergeEvensOdds xs
+  = eqAxiom (merge (odds xs) (evens xs)) xs (\i -> thMergeEvensOddsS i xs)
+
+{-@ thMergeEvensOddsS :: i:Size -> xs:_
+                     -> {eqI i (merge (odds xs) (evens xs)) xs}
+@-}
+thMergeEvensOddsS i xxs@(x :> xs)
+  = bisim i lhs xxs (const ()) (\j -> thMergeEvensOddsS j xs)
+  where
+    lhs
+      =   merge (odds xxs) (evens xxs)
+      === hd (odds xxs) :> merge (evens xxs) (tl (odds xxs))
+      === hd (x :> (odds . tl.tl) xxs) :>
+               merge (odds . tl $ xxs) (tl (odds xxs))
+      === x :> merge (odds xs) (odds . tl $xs)
+      === x :> merge (odds xs) (evens xs)
 
 -- should be accepted only with lazy annotation. Now passes because of
 -- no-adt.
@@ -112,13 +120,14 @@ implies False _ = True
 implies _ True = True
 implies _ _ = False
 
+{-@ measure belowI :: Size -> Stream a -> Stream a -> Bool @-}
 {-@ assume belowS :: i:Size
                  -> xs:_
                  -> ys:_
                  -> ({j:Size| j<i} -> {hd xs <= hd ys})
                  -> ({j:Size| j<i} -> { (hd xs == hd ys) =>
-                                        (below (tl xs) (tl ys)) })
-                 -> {below xs ys}
+                                        (belowI j (tl xs) (tl ys)) })
+                 -> {belowI i xs ys}
 @-}
 belowS :: Size -> Stream Int -> Stream Int
       -> (Size -> Proof) -> (Size -> Proof)
@@ -130,9 +139,19 @@ mult :: Stream Int -> Stream Int -> Stream Int
 mult xs ys = hd xs * hd ys :> mult (tl xs) (tl ys)
 
 
-{-@ theoremBelowSquare :: i:Size -> xs:_ -> {below xs (mult xs xs)} @-}
-theoremBelowSquare :: Size -> Stream Int -> Proof
-theoremBelowSquare i xs = belowS i xs (mult xs xs) thHead thTail
+{-@ assume belowAxiom :: xs:_
+                      -> ys:_
+                      -> (i:Size -> {belowI i xs ys})
+                      -> {below xs ys} @-}
+belowAxiom :: Stream Int -> Stream Int -> (Size -> Proof) -> Proof
+belowAxiom _ _ _ = ()
+
+{-@ theoremBelowSquare :: xs:_ -> {below xs (mult xs xs)} @-}
+theoremBelowSquare xs =
+  belowAxiom xs (mult xs xs) (\i -> theoremBelowSquareS i xs)
+{-@ theoremBelowSquareS :: i:Size -> xs:_ -> {belowI i xs (mult xs xs)} @-}
+theoremBelowSquareS :: Size -> Stream Int -> Proof
+theoremBelowSquareS i xs = belowS i xs (mult xs xs) thHead thTail
   where
     thHead j
       =   hd (thMult j)
@@ -142,20 +161,28 @@ theoremBelowSquare i xs = belowS i xs (mult xs xs) thHead thTail
     thTail j
       =   tl (thMult j)
       === mult (tl xs) (tl xs)
-        ? theoremBelowSquare j (tl xs)
+        ? theoremBelowSquareS j (tl xs)
       *** QED
     thMult j
       =   mult xs xs
       === hd xs * hd xs :> mult (tl xs) (tl xs)
 
+{-@ measure trueStreamI :: Size -> Stream a -> Bool @-}
 -- trueStream is another (trivial) co-predicate.
 {-@ reflect trueStream @-}
 trueStream xs = trueStream (tl xs)
 
+{-@ assume trueStreamAxiom :: xs:_
+                           -> (i:Size -> {trueStreamI i xs})
+                           -> {trueStream xs}
+@-}
+trueStreamAxiom :: Stream a -> (Size -> Proof) -> Proof
+trueStreamAxiom _ _ = ()
+
 {-@ assume trueStreamS :: i:Size -> xs:_
                        -> ({j:Size| j<i} -> ())
-                       -> ({j:Size| j<i} -> {trueStream (tl xs)})
-                       -> {trueStream xs}
+                       -> ({j:Size| j<i} -> {trueStreamI j (tl xs)})
+                       -> {trueStreamI i xs}
 @-}
 trueStreamS :: Size -> Stream a
             -> (Size -> Proof)
@@ -163,11 +190,14 @@ trueStreamS :: Size -> Stream a
             -> Proof
 trueStreamS i xs p1 p2 = ()
 
-{-@ thTrueStream :: i:Size -> xs:_ -> {trueStream xs} @-}
-thTrueStream i xs = trueStreamS i xs (\j -> ())
-                                     (\j -> thTrueStream j (tl xs))
+{-@ thTrueStream :: xs:_ -> {trueStream xs} @-}
+thTrueStream xs = trueStreamAxiom xs (\i -> thTrueStreamS i xs)
 
------------------------------------------------
+{-@ thTrueStreamS :: i:Size -> xs:_ -> {trueStreamI i xs} @-}
+thTrueStreamS i xs = trueStreamS i xs (\j -> ())
+                                      (\j -> thTrueStreamS j (tl xs))
+
+-- -----------------------------------------------
 -- | f morse == morse
 -- This example is from `Durel and Lucanu 2009`
 
@@ -198,7 +228,7 @@ theoremFMorse
     tt
       =   tl tlFMorse
       === f (tl morse)
-        ? theoremFMerge 0 (tl morse)
+        ? theoremFMerge (tl morse)
       === merge (tl morse) (map not (tl morse))
       === tl tlMorse
 
@@ -220,68 +250,60 @@ theoremFMorse
 
     tlMorse = tl morse' === True :> merge (tl morse) (map not (tl morse))
 
-{-@ theoremFMerge :: i:Size -> xs:_
-                  -> {f xs = merge xs (map not xs)}
+{-@ theoremFMerge :: xs:_ -> {(f xs) = merge xs (map not xs)} @-}
+theoremFMerge xs =
+  eqAxiom (f xs) (merge xs (map not xs)) (\i -> theoremFMergeS i xs)
+
+{-@ theoremFMergeS :: i:Size -> xs:_
+                  -> {eqI i (f xs) (merge xs (map not xs))}
 @-}
-theoremFMerge i xs
-  = bisim i (f xs) (merge xs (map not xs)) thHead thTail
+theoremFMergeS i xxs@(x :> xs)
+  = bisim i lhs rhs (const ())
+  $ \j -> bisim j tlLhs tlRhs (const ()) (\j -> theoremFMergeS j xs)
   where
-    thHead _
-      =   hd (f xs)
-      === hd (hd xs :> not (hd xs) :> f (tl xs))
-      === hd xs
-      === hd mergeXsNotXs
-      *** QED
+    lhs
+      =   f xxs
+      === x :> not x :> f xs
+    rhs
+      =   merge xxs (map not xxs)
+      === x :> merge (map not xxs) xs
 
-    thTail j
-      =   tl mergeXsNotXs
-      === merge (map not xs) (tl xs)
-      === merge (not (hd xs) :> map not (tl xs)) (tl xs)
-      === not (hd xs) :> merge (tl xs) (map not (tl xs))
-        ? theoremFMerge j (tl xs)
-      === not (hd xs) :> f (tl xs)
-      === tl (f xs)
-      *** QED
+    tlRhs
+      =   tl rhs
+      === merge (map not xxs) xs
+      === merge (not x :> map not xs) xs
+      === not x :> merge xs (map not xs)
 
+    tlLhs
+      =   tl lhs
+      === not x :> f xs
 
-    mergeXsNotXs
-      =   merge xs (map not xs)
-      === hd xs :> merge (map not xs) (tl xs)
+{-@ theoremNotF :: xs:_ -> {map not (f xs) = f (map not xs)} @-}
+theoremNotF xs =
+  eqAxiom (map not (f xs)) (f (map not xs)) (\i -> theoremNotFS i xs)
 
-{-@ theoremNotF :: i:Size -> xs:_
-                     -> {map not (f xs) = f (map not xs)}
+{-@ theoremNotFS :: i:Size -> xs:_
+                     -> {eqI i (map not (f xs)) (f (map not xs))}
 @-}
-theoremNotF i xs
-  = bisim i (map not (f xs)) (f (map not xs)) thHead thTail
+theoremNotFS i xxs@(x :> xs)
+  =       bisim i lhs  rhs    (\_ -> ())
+  $ \j -> bisim j tlLhs tlRhs (\_ -> ()) (\k -> theoremNotFS k xs)
   where
-    mapNotFXS j
-      =   map not (f xs)
-      === map not (hd xs :> not (hd xs) :> f (tl xs))
-      === not (hd xs) :>
-        ( -- tail part expanded:
-             map not (not (hd xs) :> f (tl xs))
-         === not (not (hd xs)) :> map not (f (tl xs))
-         ?   theoremNotF j (tl xs)
-         === not (not (hd xs)) :> f (map not (tl xs))
-        )
+    lhs
+      =   map not (f xxs)
+      === map not (x :> not x :> f xs)
+      === not x :> map not (not x :> f xs)
+      === not x :> not (not x) :> map not (f xs)
 
-    thHead j
-      =   hd (mapNotFXS j)
-      === not (hd xs)
-      === hd (not (hd xs) :> map not (tl xs))
-      === hd (map not xs)
-      === hd (f (map not xs))
-      *** QED
+    rhs
+      =   f (map not xxs)
+      === f (not x :> map not xs)
+      === not x :> not (not x) :> f (map not xs)
 
-    thTail j
-      =   tl (mapNotFXS j)
-      === not ( -- expanding this term:
-                   not (hd xs)
-               === hd (not (hd xs) :> map not (tl xs))
-               === hd (map not xs)
-              )
-                                :> f (map not (tl xs))
-      === not (hd (map not xs)) :> f (tl (map not xs))
-      === tl (f (map not xs))
-      *** QED
+    tlRhs
+      =   tl rhs
+      === not (not x) :> f (map not xs)
 
+    tlLhs
+      =   tl lhs
+      === not (not x) :> map not (f xs)

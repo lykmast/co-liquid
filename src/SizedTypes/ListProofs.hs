@@ -16,11 +16,11 @@ emp _   = False
 
 {-@ type ListNE a = {v:List a | not (emp v)} @-}
 
-{-@ reflect hd @-}
+{-@ measure hd @-}
 {-@ hd :: ListNE _ -> _ @-}
 hd (Cons x _) = x
 
-{-@ reflect tl @-}
+{-@ measure tl @-}
 {-@ tl :: ListNE _ -> _ @-}
 tl (Cons _ xs) = xs
 
@@ -39,18 +39,31 @@ append :: List a -> List a -> List a
 append Nil ys = ys
 append xs  ys = hd xs `Cons` append (tl xs) ys
 
-
+{-@ measure eqI :: i:Size -> List a -> List a -> Bool @-}
 {-@ assume bisim :: i:Size
                  -> xs:_
                  -> ys:_
                  -> ({j:Size| j<i} -> {hd xs = hd ys})
-                 -> ({j:Size| j<i} -> {tl xs = tl ys})
-                 -> {xs = ys}
+                 -> ({j:Size| j<i} -> {eqI j (tl xs) (tl ys)})
+                 -> {eqI i xs ys}
 @-}
 bisim :: Size -> List a -> List a
       -> (Size -> Proof) -> (Size -> Proof)
       -> Proof
 bisim i xs ys p1 p2 = ()
+
+{-@
+assume eqAxiomR :: i:Size -> xs:_ -> {ys:_|xs = ys} -> {eqI i xs ys}
+@-}
+eqAxiomR :: Size -> List a -> List a -> Proof
+eqAxiomR _ _ _ = ()
+
+{-@ assume eqAxiom :: xs:_ -> ys:_
+                   -> (i:Size -> {eqI i xs ys})
+                   -> {xs = ys}
+@-}
+eqAxiom :: List a -> List a -> (Size -> Proof) -> Proof
+eqAxiom _ _ _ = ()
 
 {-@ lemma_appCons :: x:_ -> xs:_ -> ys:_
                   -> {append (Cons x xs) ys = Cons x (append xs ys)}
@@ -62,77 +75,72 @@ lemma_appCons x xs ys
   === Cons x (xs `append` ys)
   *** QED
 
-{-@ appendAssoc :: i:Size -> xs:_ -> ys:_ -> zs:_
+{-@ appendAssoc :: xs:_ -> ys:_ -> zs:_
                 -> {append xs (append ys zs) = append (append xs ys) zs}
 @-}
-appendAssoc :: Size -> List a -> List a -> List a -> Proof
-appendAssoc i Nil ys zs
-  =   append Nil (append ys zs)
-  === append ys zs
-  === append (append Nil ys) zs
-  *** QED
-appendAssoc i xs  ys zs = bisim i (append xs (append ys zs))
-                                  (append (append xs ys) zs)
-                                  thH thT
+appendAssoc :: List a -> List a -> List a -> Proof
+appendAssoc xs ys zs =
+  eqAxiom (append xs (append ys zs))
+          (append (append xs ys) zs)
+          (\i -> appendAssocS i xs ys zs)
+
+{-@ appendAssocS :: i:Size -> xs:_ -> ys:_ -> zs:_
+                -> {eqI i (append xs (append ys zs))
+                          (append (append xs ys) zs)}
+@-}
+appendAssocS i Nil ys zs = eqAxiomR i lhs lhs
   where
-    thH j
-      =   hd (thApp1 j)
-      === hd xs
-      === hd (thApp2 j)
-      *** QED
-    thT j
-      =   tl (thApp1 j)
-      === (tl xs `append` ys) `append` zs
-        ? appendAssoc j (tl xs) ys zs
-      === tl xs `append` (ys `append` zs)
-      === tl (thApp2 j)
-      *** QED
-    thApp1 j
-      =   (xs `append` ys) `append` zs
-      === Cons (hd xs) (tl xs `append` ys) `append` zs
-        ? lemma_appCons (hd xs) (tl xs `append` ys) zs
-      === Cons (hd xs) ((tl xs `append` ys) `append` zs)
-    thApp2 j
-      =   xs  `append` (ys `append` zs)
-      === Cons (hd xs) (tl xs `append` (ys `append` zs))
+    lhs
+      =   (Nil `append` ys) `append` zs
+      === ys `append` zs
+      === Nil  `append` (ys `append` zs)
+appendAssocS i xxs@(Cons x xs) ys zs =
+  bisim i xsAYsZs xsYsAZs (const ()) (\j -> appendAssocS j xs ys zs)
+  where
+    xsYsAZs
+      =   (xxs `append` ys) `append` zs
+      === (Cons x xs `append` ys) `append` zs
+      === Cons x (xs `append` ys) `append` zs
+        ? lemma_appCons x (xs `append` ys) zs
+      === Cons x ((xs `append` ys) `append` zs)
+    xsAYsZs
+      =   xxs  `append` (ys `append` zs)
+      === Cons x (xs `append` (ys `append` zs))
 
 ---------------- Paulson ------------------
 
-
-{-@ theoremMapAppend :: Size -> f:_ -> m:_ -> n:_
-                     -> {map f (append m n)
-                          = append (map f m) (map f n) }
+{-@ theoremMapAppend :: f:_ -> m:_ -> n:_
+                      -> {  map f (append m n)
+                          = append (map f m) (map f n)}
 @-}
-theoremMapAppend :: Size -> (a -> b) -> List a -> List a -> Proof
-theoremMapAppend _ f Nil n
-  =   map f (append Nil n)
-  === map f n
-  === Nil `append` map f n
-  === map f Nil `append` map f n
-  *** QED
-theoremMapAppend i f m n = bisim i (map f (append m n))
-                               (append (map f m) (map f n))
-                               thH thT
+theoremMapAppend f m n =
+  eqAxiom (map f (append m n))
+          (append (map f m) (map f n))
+          (\i -> theoremMapAppendS i f m n)
+
+
+{-@ theoremMapAppendS :: i:Size -> f:_ -> m:_ -> n:_
+                     -> {eqI i (map f (append m n))
+                          (append (map f m) (map f n))}
+@-}
+theoremMapAppendS :: Size -> (a -> b) -> List a -> List a -> Proof
+theoremMapAppendS i f Nil n = eqAxiomR i lhs lhs
   where
-    thH j
-      =   hd (thMApp1 j)
-      === f (hd m)
-      === hd (thMApp2 j)
-      *** QED
-    thT j
-      =   tl (thMApp1 j)
-      === map f (append (tl m) n)
-        ? theoremMapAppend j f (tl m) n
-      === map f (tl m) `append` map f n
-      === tl (thMApp2 j)
-      *** QED
-    thMApp1 j
+    lhs
+      =   map f (append Nil n)
+      === map f n
+      === Nil `append` map f n
+      === map f Nil `append` map f n
+theoremMapAppendS i f m n =
+  bisim i lhs rhs (const ()) (\j -> theoremMapAppendS j f (tl m) n)
+  where
+    lhs
       =   map f (append m n)
       === map f ((hd m) `Cons` append (tl m) n)
       === f (hd ((hd m) `Cons` append (tl m) n))
             `Cons` map f (tl ((hd m) `Cons` append (tl m) n))
       === f (hd m) `Cons` map f (append (tl m) n)
-    thMApp2 j
+    rhs
       =   map f m `append` map f n
       === (f (hd m) `Cons` map f (tl m)) `append` map f n
       === hd (f (hd m) `Cons` map f (tl m)) `Cons`
@@ -143,12 +151,12 @@ theoremMapAppend i f m n = bisim i (map f (append m n))
 isInfinite Nil = False
 isInfinite xs  = isInfinite (tl xs)
 
-
+{-@ measure isInfiniteI :: Size -> List a -> Bool @-}
 
 {-@ assume isInfiniteS :: i:Size
                        -> xs:ListNE _
-                       -> ({j:Size| j<i} -> {isInfinite (tl xs)})
-                       -> {isInfinite xs}
+                       -> ({j:Size| j<i} -> {isInfiniteI j (tl xs)})
+                       -> {isInfiniteI i xs}
 @-}
 isInfiniteS :: Size
             -> List a
@@ -156,24 +164,35 @@ isInfiniteS :: Size
             -> Proof
 isInfiniteS i xs p = ()
 
+{-@ assume isInfiniteAxiom :: xs:_
+                           -> (i:Size -> {isInfiniteI i xs})
+                           -> {isInfinite xs}
+@-}
+isInfiniteAxiom :: List a -> (Size -> Proof) -> Proof
+isInfiniteAxiom _ _ = ()
+
 {-@ reflect not @-}
 not True  = False
 not False = True
 
 {-@ reflect isFinite @-}
 isFinite = not . isInfinite
-
-{-@ lemmaMapInfinite :: i:Size
-                     -> f:_ -> {xs:_|isInfinite xs}
+{-@ lemmaMapInfinite :: f:_ -> {xs:_|isInfinite xs}
                      -> {isInfinite (map f xs)}
 @-}
-lemmaMapInfinite :: Size -> (a -> b) -> List a -> Proof
-lemmaMapInfinite i f xs@Nil = isInfinite xs === False *** QED
-lemmaMapInfinite i f xs = isInfiniteS i (map f xs) $ \j
-  ->  tl (map f xs)
-  === tl (Cons (f (hd xs)) (map f (tl xs)))
-  === map f (tl xs)
-    ? (isInfinite xs === isInfinite (tl xs) *** QED)
-    ? lemmaMapInfinite j f (tl xs)
+lemmaMapInfinite f xs =
+  isInfiniteAxiom (map f xs) (\i -> lemmaMapInfiniteS i f xs)
+{-@ lemmaMapInfiniteS :: i:Size
+                     -> f:_ -> {xs:_|isInfinite xs}
+                     -> {isInfiniteI i (map f xs)}
+@-}
+lemmaMapInfiniteS :: Size -> (a -> b) -> List a -> Proof
+lemmaMapInfiniteS i f xs@Nil = isInfinite xs === False *** QED
+lemmaMapInfiniteS i f xxs@(Cons x xs) = isInfiniteS i (map f xxs) $ \j
+  ->  tl (map f xxs)
+  === tl (Cons (f x) (map f xs))
+  === map f xs
+    ? (isInfinite xxs === isInfinite xs *** QED)
+    ? lemmaMapInfiniteS j f xs
   *** QED
 
