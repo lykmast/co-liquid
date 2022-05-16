@@ -70,16 +70,6 @@ eqIRefl xxs@(Cons x xs) i = bisim i xxs xxs (const ()) (eqIRefl xs)
 eqAxiom :: List a -> List a -> (Size -> Proof) -> Proof
 eqAxiom _ _ _ = ()
 
-{-@ lemma_appCons :: x:_ -> xs:_ -> ys:_
-                  -> {append (Cons x xs) ys = Cons x (append xs ys)}
-@-}
-lemma_appCons :: a -> List a -> List a -> Proof
-lemma_appCons x xs ys
-  =   Cons x xs `append` ys
-  === Cons (hd (Cons x xs)) (tl (Cons x xs) `append` ys)
-  === Cons x (xs `append` ys)
-  *** QED
-
 {-@ appendAssoc :: xs:_ -> ys:_ -> zs:_
                 -> {append xs (append ys zs) = append (append xs ys) zs}
 @-}
@@ -87,26 +77,25 @@ appendAssoc :: List a -> List a -> List a -> Proof
 appendAssoc xs ys zs =
   eqAxiom (append xs (append ys zs))
           (append (append xs ys) zs)
-          (\i -> appendAssocS i xs ys zs)
+          (appendAssocS xs ys zs)
 
-{-@ appendAssocS :: i:Size -> xs:_ -> ys:_ -> zs:_
+{-@ appendAssocS :: xs:_ -> ys:_ -> zs:_ -> i:Size
                 -> {eqI i (append xs (append ys zs))
                           (append (append xs ys) zs)}
 @-}
-appendAssocS i Nil ys zs = eqIRefl lhs i
+appendAssocS Nil ys zs i = eqIRefl lhs i
   where
     lhs
       =   (Nil `append` ys) `append` zs
       === ys `append` zs
       === Nil  `append` (ys `append` zs)
-appendAssocS i xxs@(Cons x xs) ys zs =
-  bisim i xsAYsZs xsYsAZs (const ()) (\j -> appendAssocS j xs ys zs)
+appendAssocS xxs@(Cons x xs) ys zs i =
+  bisim i xsAYsZs xsYsAZs (const ()) (appendAssocS xs ys zs)
   where
     xsYsAZs
       =   (xxs `append` ys) `append` zs
       === (Cons x xs `append` ys) `append` zs
       === Cons x (xs `append` ys) `append` zs
-        ? lemma_appCons x (xs `append` ys) zs
       === Cons x ((xs `append` ys) `append` zs)
     xsAYsZs
       =   xxs  `append` (ys `append` zs)
@@ -121,23 +110,23 @@ appendAssocS i xxs@(Cons x xs) ys zs =
 theoremMapAppend f m n =
   eqAxiom (map f (append m n))
           (append (map f m) (map f n))
-          (\i -> theoremMapAppendS i f m n)
+          (theoremMapAppendS f m n)
 
 
-{-@ theoremMapAppendS :: i:Size -> f:_ -> m:_ -> n:_
+{-@ theoremMapAppendS :: f:_ -> m:_ -> n:_ -> i:Size
                      -> {eqI i (map f (append m n))
                           (append (map f m) (map f n))}
 @-}
-theoremMapAppendS :: Size -> (a -> b) -> List a -> List a -> Proof
-theoremMapAppendS i f Nil n = eqIRefl lhs i
+theoremMapAppendS :: (a -> b) -> List a -> List a -> Size -> Proof
+theoremMapAppendS f Nil n i = eqIRefl lhs i
   where
     lhs
       =   map f (append Nil n)
       === map f n
       === Nil `append` map f n
       === map f Nil `append` map f n
-theoremMapAppendS i f m n =
-  bisim i lhs rhs (const ()) (\j -> theoremMapAppendS j f (tl m) n)
+theoremMapAppendS f m n i =
+  bisim i lhs rhs (const ()) (theoremMapAppendS f (tl m) n)
   where
     lhs
       =   map f (append m n)
@@ -186,18 +175,16 @@ isFinite = not . isInfinite
                      -> {isInfinite (map f xs)}
 @-}
 lemmaMapInfinite f xs =
-  isInfiniteAxiom (map f xs) (\i -> lemmaMapInfiniteS i f xs)
-{-@ lemmaMapInfiniteS :: i:Size
-                     -> f:_ -> {xs:_|isInfinite xs}
-                     -> {isInfiniteI i (map f xs)}
+  isInfiniteAxiom (map f xs) (lemmaMapInfiniteS f xs)
+{-@ lemmaMapInfiniteS :: f:_ -> {xs:_|isInfinite xs}
+                      -> i:Size
+                      -> {isInfiniteI i (map f xs)}
 @-}
-lemmaMapInfiniteS :: Size -> (a -> b) -> List a -> Proof
-lemmaMapInfiniteS i f xs@Nil = isInfinite xs === False *** QED
-lemmaMapInfiniteS i f xxs@(Cons x xs) = isInfiniteS i (map f xxs) $ \j
+lemmaMapInfiniteS f xs@Nil i = isInfinite xs === False *** QED
+lemmaMapInfiniteS f xxs@(Cons x xs) i = isInfiniteS i (map f xxs) $ \j
   ->  tl (map f xxs)
   === tl (Cons (f x) (map f xs))
   === map f xs
     ? (isInfinite xxs === isInfinite xs *** QED)
-    ? lemmaMapInfiniteS j f xs
+    ? lemmaMapInfiniteS f xs j
   *** QED
-

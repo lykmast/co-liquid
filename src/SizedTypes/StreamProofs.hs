@@ -91,13 +91,13 @@ merge xs ys = hd xs :> merge ys (tl xs)
 {-@ thMergeEvensOdds :: xs:_ -> {merge (odds xs) (evens xs) = xs} @-}
 thMergeEvensOdds :: Stream a -> Proof
 thMergeEvensOdds xs
-  = eqAxiom (merge (odds xs) (evens xs)) xs (\i -> thMergeEvensOddsS i xs)
+  = eqAxiom (merge (odds xs) (evens xs)) xs (thMergeEvensOddsS xs)
 
-{-@ thMergeEvensOddsS :: i:Size -> xs:_
+{-@ thMergeEvensOddsS :: xs:_ -> i:Size
                      -> {eqI i (merge (odds xs) (evens xs)) xs}
 @-}
-thMergeEvensOddsS i xxs@(x :> xs)
-  = bisim i lhs xxs (const ()) (\j -> thMergeEvensOddsS j xs)
+thMergeEvensOddsS xxs@(x :> xs) i
+  = bisim i lhs xxs (const ()) (thMergeEvensOddsS xs)
   where
     lhs
       =   merge (odds xxs) (evens xxs)
@@ -148,24 +148,16 @@ belowAxiom _ _ _ = ()
 
 {-@ theoremBelowSquare :: xs:_ -> {below xs (mult xs xs)} @-}
 theoremBelowSquare xs =
-  belowAxiom xs (mult xs xs) (\i -> theoremBelowSquareS i xs)
-{-@ theoremBelowSquareS :: i:Size -> xs:_ -> {belowI i xs (mult xs xs)} @-}
-theoremBelowSquareS :: Size -> Stream Int -> Proof
-theoremBelowSquareS i xs = belowS i xs (mult xs xs) thHead thTail
+  belowAxiom xs (mult xs xs) (theoremBelowSquareS xs)
+
+{-@ theoremBelowSquareS :: xs:_ -> i:Size -> {belowI i xs (mult xs xs)} @-}
+theoremBelowSquareS xxs@(x:>xs) i =
+  belowS i lhs rhs (const ()) (theoremBelowSquareS xs)
   where
-    thHead j
-      =   hd (thMult j)
-      === hd xs * hd xs
-      =>= hd xs
-      *** QED
-    thTail j
-      =   tl (thMult j)
-      === mult (tl xs) (tl xs)
-        ? theoremBelowSquareS j (tl xs)
-      *** QED
-    thMult j
-      =   mult xs xs
-      === hd xs * hd xs :> mult (tl xs) (tl xs)
+    lhs = x:>xs
+    rhs
+      =   mult xxs xxs
+      === x * x :> mult xs xs
 
 {-@ measure trueStreamI :: Size -> Stream a -> Bool @-}
 -- trueStream is another (trivial) co-predicate.
@@ -191,11 +183,11 @@ trueStreamS :: Size -> Stream a
 trueStreamS i xs p1 p2 = ()
 
 {-@ thTrueStream :: xs:_ -> {trueStream xs} @-}
-thTrueStream xs = trueStreamAxiom xs (\i -> thTrueStreamS i xs)
-
-{-@ thTrueStreamS :: i:Size -> xs:_ -> {trueStreamI i xs} @-}
-thTrueStreamS i xs = trueStreamS i xs (\j -> ())
-                                      (\j -> thTrueStreamS j (tl xs))
+thTrueStream xs = trueStreamAxiom xs (thTrueStreamS xs)
+  where
+    {-@ thTrueStreamS :: xs:_ -> i:Size -> {trueStreamI i xs} @-}
+    thTrueStreamS xxs@(_:>xs) i =
+      trueStreamS i xxs (const ()) (thTrueStreamS xs)
 
 -- -----------------------------------------------
 -- | f morse == morse
@@ -252,14 +244,14 @@ theoremFMorse
 
 {-@ theoremFMerge :: xs:_ -> {(f xs) = merge xs (map not xs)} @-}
 theoremFMerge xs =
-  eqAxiom (f xs) (merge xs (map not xs)) (\i -> theoremFMergeS i xs)
+  eqAxiom (f xs) (merge xs (map not xs)) (theoremFMergeS xs)
 
-{-@ theoremFMergeS :: i:Size -> xs:_
+{-@ theoremFMergeS :: xs:_ -> i:Size
                   -> {eqI i (f xs) (merge xs (map not xs))}
 @-}
-theoremFMergeS i xxs@(x :> xs)
+theoremFMergeS xxs@(x :> xs) i
   = bisim i lhs rhs (const ())
-  $ \j -> bisim j tlLhs tlRhs (const ()) (\j -> theoremFMergeS j xs)
+  $ \j -> bisim j tlLhs tlRhs (const ()) (theoremFMergeS xs)
   where
     lhs
       =   f xxs
@@ -280,14 +272,14 @@ theoremFMergeS i xxs@(x :> xs)
 
 {-@ theoremNotF :: xs:_ -> {map not (f xs) = f (map not xs)} @-}
 theoremNotF xs =
-  eqAxiom (map not (f xs)) (f (map not xs)) (\i -> theoremNotFS i xs)
+  eqAxiom (map not (f xs)) (f (map not xs)) (theoremNotFS xs)
 
-{-@ theoremNotFS :: i:Size -> xs:_
+{-@ theoremNotFS :: xs:_ -> i:Size
                      -> {eqI i (map not (f xs)) (f (map not xs))}
 @-}
-theoremNotFS i xxs@(x :> xs)
+theoremNotFS xxs@(x :> xs) i
   =       bisim i lhs  rhs    (\_ -> ())
-  $ \j -> bisim j tlLhs tlRhs (\_ -> ()) (\k -> theoremNotFS k xs)
+  $ \j -> bisim j tlLhs tlRhs (\_ -> ()) (theoremNotFS xs)
   where
     lhs
       =   map not (f xxs)
