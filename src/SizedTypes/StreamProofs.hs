@@ -299,3 +299,30 @@ theoremNotFS xxs@(x :> xs) i
     tlLhs
       =   tl lhs
       === not (not x) :> map not (f xs)
+
+{-@ reflect dup @-}
+dup (x :> x' :> xs) = x == x' && dup xs
+
+{-@ measure dupI :: Size -> Stream a -> Bool @-}
+
+{-@ assume dupS :: i:Size -> xs:_
+                -> {v:Proof| hd xs = hd (tl xs)}
+                -> ({j:Size|j<i} -> {dupI j (tl (tl xs))})
+                -> {dupI i xs}
+@-}
+dupS :: Size -> Stream a -> Proof -> (Size -> Proof) -> Proof
+dupS _ _ _ _ = ()
+
+{-@ assume dupAxiom :: xs:_ -> (i:Size -> {dupI i xs}) -> {dup xs} @-}
+dupAxiom :: Stream a -> (Size -> Proof) -> Proof
+dupAxiom _ _ = ()
+
+{-@ mergeSelfDup :: xs:_ -> {dup (merge xs xs)} @-}
+mergeSelfDup xs = dupAxiom (merge xs xs) (mergeSelfDupS xs)
+
+{-@ mergeSelfDupS :: xs:_ -> i:Size -> {dupI i (merge xs xs)} @-}
+mergeSelfDupS xxs@(x :> xs) i =
+  dupS i (   merge xxs xxs
+         === x :> merge xxs xs
+         === x :> x :> merge xs xs
+         ) () (mergeSelfDupS xs)
