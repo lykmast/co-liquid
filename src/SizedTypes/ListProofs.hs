@@ -52,11 +52,16 @@ bisim :: Size -> List a -> List a
       -> Proof
 bisim i xs ys p1 p2 = ()
 
+{-@ assume eqINil :: i:Size -> {eqI i Nil Nil} @-}
+eqINil :: Size -> Proof
+eqINil _ = ()
+
 {-@
-assume eqAxiomR :: i:Size -> xs:_ -> {ys:_|xs = ys} -> {eqI i xs ys}
+ eqIRefl :: xs:_ -> i:Size -> {eqI i xs xs}
 @-}
-eqAxiomR :: Size -> List a -> List a -> Proof
-eqAxiomR _ _ _ = ()
+eqIRefl :: List a -> Size -> Proof
+eqIRefl Nil i = eqINil i
+eqIRefl xxs@(Cons x xs) i = bisim i xxs xxs (const ()) (eqIRefl xs)
 
 {-@ assume eqAxiom :: xs:_ -> ys:_
                    -> (i:Size -> {eqI i xs ys})
@@ -88,7 +93,7 @@ appendAssoc xs ys zs =
                 -> {eqI i (append xs (append ys zs))
                           (append (append xs ys) zs)}
 @-}
-appendAssocS i Nil ys zs = eqAxiomR i lhs lhs
+appendAssocS i Nil ys zs = eqIRefl lhs i
   where
     lhs
       =   (Nil `append` ys) `append` zs
@@ -124,7 +129,7 @@ theoremMapAppend f m n =
                           (append (map f m) (map f n))}
 @-}
 theoremMapAppendS :: Size -> (a -> b) -> List a -> List a -> Proof
-theoremMapAppendS i f Nil n = eqAxiomR i lhs lhs
+theoremMapAppendS i f Nil n = eqIRefl lhs i
   where
     lhs
       =   map f (append Nil n)
