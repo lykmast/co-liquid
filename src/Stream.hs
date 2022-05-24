@@ -289,7 +289,9 @@ _theoremBelowSquareK k (a :> as)
     ? _theoremBelowSquareK (k-1) as
   *** QED
 
-{-@ _lemmaEvenOddK :: k: Nat -> xs:_ -> {eqK k (merge (odds xs) (evens xs)) xs} @-}
+{-@ _lemmaEvenOddK :: k: Nat -> xs:_
+                   -> {eqK k (merge (odds xs) (evens xs)) xs}
+@-}
 _lemmaEvenOddK :: (Eq a) => Int -> Stream a -> Proof
 _lemmaEvenOddK 0 s
   =   eqK 0 (merge (odds s) (evens s)) s

@@ -63,7 +63,10 @@ tl (_ :> xs) = xs
 -- and belowS/below for lexicographic comparison of streams.
 {-@ measure eqI :: Size -> Stream a -> Stream a -> Bool @-}
 
-{-@ assume eqAxiom :: xs:_ -> ys:_ -> (i:Size -> {eqI i xs ys}) -> {xs = ys} @-}
+{-@ assume eqAxiom :: xs:_ -> ys:_
+                   -> (i:Size -> {eqI i xs ys})
+                   -> {xs = ys}
+@-}
 eqAxiom :: Stream a -> Stream a -> (Size -> Proof) -> Proof
 eqAxiom _ _ _ = ()
 
@@ -150,7 +153,7 @@ belowAxiom _ _ _ = ()
 theoremBelowSquare xs =
   belowAxiom xs (mult xs xs) (theoremBelowSquareS xs)
 
-{-@ theoremBelowSquareS :: xs:_ -> i:Size -> {belowI i xs (mult xs xs)} @-}
+{-@ theoremBelowSquareS :: xs:_ -> i:Size -> {belowI i xs (mult xs xs)}@-}
 theoremBelowSquareS xxs@(x:>xs) i =
   belowS i lhs rhs (const ()) (theoremBelowSquareS xs)
   where
@@ -214,33 +217,11 @@ not False = True
 {-@ theoremFMorse :: {f morse = morse} @-}
 theoremFMorse
   =   f morse
-  === hd fMorse :> ht :> tt
+  === hd morse :> not (hd morse) :> f (tl morse)
+    ? theoremFMerge (tl morse)
+  === False :> True :> merge (tl morse) (map not (tl morse))
+  === morse
   *** QED
-  where
-    tt
-      =   tl tlFMorse
-      === f (tl morse)
-        ? theoremFMerge (tl morse)
-      === merge (tl morse) (map not (tl morse))
-      === tl tlMorse
-
-    ht
-      =   hd tlFMorse
-      === True
-      === hd tlMorse
-
-    morse'
-      =   morse
-      === False :> True :> merge (tl morse) (map not (tl morse))
-
-    fMorse
-      =   f morse
-      === hd morse :> not (hd morse') :> f (tl morse)
-      === hd morse :> True :> f (tl morse)
-
-    tlFMorse = tl fMorse === True :> f (tl morse)
-
-    tlMorse = tl morse' === True :> merge (tl morse) (map not (tl morse))
 
 {-@ theoremFMerge :: xs:_ -> {(f xs) = merge xs (map not xs)} @-}
 theoremFMerge xs =
@@ -259,13 +240,11 @@ theoremFMergeS xxs@(x :> xs) i
     rhs
       =   merge xxs (map not xxs)
       === x :> merge (map not xxs) xs
-
     tlRhs
       =   tl rhs
       === merge (map not xxs) xs
       === merge (not x :> map not xs) xs
       === not x :> merge xs (map not xs)
-
     tlLhs
       =   tl lhs
       === not x :> f xs
@@ -286,16 +265,13 @@ theoremNotFS xxs@(x :> xs) i
       === map not (x :> not x :> f xs)
       === not x :> map not (not x :> f xs)
       === not x :> not (not x) :> map not (f xs)
-
     rhs
       =   f (map not xxs)
       === f (not x :> map not xs)
       === not x :> not (not x) :> f (map not xs)
-
     tlRhs
       =   tl rhs
       === not (not x) :> f (map not xs)
-
     tlLhs
       =   tl lhs
       === not (not x) :> map not (f xs)

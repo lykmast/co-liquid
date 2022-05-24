@@ -42,7 +42,9 @@ theoremFMerge :: Stream Bool -> Proof
 theoremFMerge xs =
   dAxiom_eq (f xs) (merge xs (map not xs)) (\k -> theoremFMergeK k xs)
 
-{-@ theoremFMergeK :: k:Nat -> xs:_ -> {eqK k (f xs) (merge xs (map not xs))} @-}
+{-@ theoremFMergeK :: k:Nat -> xs:_
+                   -> {eqK k (f xs) (merge xs (map not xs))}
+@-}
 theoremFMergeK :: Int -> Stream Bool -> Proof
 theoremFMergeK 0 xs = eqK 0 (f xs) (merge xs (map not xs)) *** QED
 theoremFMergeK 1 xxs@(x :> xs)
