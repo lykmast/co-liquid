@@ -60,6 +60,23 @@ eqKAxiom :: Int -> Stream a -> Stream a -> ()
 eqKAxiom _ _ _ _ _ = ()    
 
 
+eqKAxiomREV1 :: Int -> Stream a -> Stream a -> () 
+        -> () 
+eqKAxiomREV2 :: Int -> Stream a -> Stream a -> () 
+        -> (Int -> ())
+{-@ assume eqKAxiomREV1 :: i:Nat -> x:Stream a -> y:Stream a 
+                   -> {v:() |eqK x y i}    
+                   -> {v:() | shead x == shead y}  @-}  
+eqKAxiomREV1 _ _ _ _ = () 
+
+
+{-@ assume eqKAxiomREV2 :: i:Nat -> x:Stream a -> y:Stream a 
+                   -> {v:() |eqK x y i}    
+                   -> (j:{Nat | j < i} -> {v:() | eqK (stail x) (stail y) j})
+                   @-}  
+eqKAxiomREV2 _ _ _ _ _ = () 
+
+
 {-@ theorem :: xs:Stream a 
             -> i:Nat -> {v : () | eqK (merge (odds xs) (evens xs)) xs i } @-}
 theorem :: Eq a => Stream a -> Int -> ()  
@@ -76,14 +93,20 @@ theorem ys@(x :> xs) i
                === merge (odds xs) (evens xs)
                *** QED) 
 
-eqKLemma :: Stream a -> Stream a -> Int -> () 
-{-@ assume eqKLemma :: x:Stream a -> y:Stream a 
-                  -> i:Nat -> { eqK x y i => (take i x = take i y)} @-}
-eqKLemma x y 0 = take 0 x === take 0 y *** QED 
-eqKLemma x y i = undefined  
+eqKLemma :: Eq a => Stream a -> Stream a -> Int -> () -> () 
+{-@ eqKLemma :: x:Stream a -> y:Stream a 
+                  -> i:Nat -> { v:() | eqK x y i} 
+                  ->  {take i x = take i y} @-}
+eqKLemma x y 0 _ = take 0 x === take 0 y *** QED 
+eqKLemma (x :> xs) (y :> ys) i p 
+  = (take i (x :> xs) == take i (y :> ys)) 
+  ? (x == y && take (i-1) xs == take (i-1) ys)
+  ? eqKAxiomREV1 i (x :> xs) (y :> ys) p 
+  ? eqKLemma xs ys (i-1) (eqKAxiomREV2 i (x :> xs) (y :> ys) p (i-1))
+  *** QED 
 
 
-approx :: Stream a -> Stream a -> Int -> () -> () 
+approx :: Eq a => Stream a -> Stream a -> Int -> () -> () 
 {-@ approx :: x:Stream a -> y:Stream a 
                   -> i:Nat -> {v:() | eqK x y i} -> { x = y } @-}
-approx x y i p = eqKLemma x y i ? takeLemma x y i  
+approx x y i p = eqKLemma x y i p ? takeLemma x y i  
