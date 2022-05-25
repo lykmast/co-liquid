@@ -20,6 +20,8 @@ library
       LList
       Overview
       Paulson
+      Section3
+      Section4
       SizedTypes.BF
       SizedTypes.CoList
       SizedTypes.List
