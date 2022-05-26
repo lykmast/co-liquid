@@ -9,7 +9,10 @@ module Section4 where
 import Prelude hiding (take)
 
 import Language.Haskell.Liquid.ProofCombinators 
-data Stream a = SCons a (Stream a) 
+
+{-@ infixr :> @-}
+infixr :>
+data Stream a = a :> Stream a
 
 -- Sadly, infix constructor does not play well with GADTs
 
@@ -25,7 +28,7 @@ data BisimilarNG a where
 {-@ data BisimilarNG a where 
           BisimNG :: x:a -> xs:Stream a -> ys:Stream a 
                 -> Prop (BisimilarNG xs ys) 
-                -> Prop (BisimilarNG (SCons x xs) (SCons x ys)) @-}
+                -> Prop (BisimilarNG (x :> xs) (x :> ys)) @-}
 
 falseProp :: Stream a -> Stream a ->  BisimilarNG a -> ()
 {-@ falseProp :: x:Stream a -> y:Stream a -> Prop (BisimilarNG x y) -> {false} @-}
@@ -41,19 +44,19 @@ data Bisimilar a where
 {-@ data Bisimilar a where 
           Bisim :: i:Nat -> x:a -> xs:Stream a -> ys:Stream a 
                 -> (j:{j:Nat | j < i} ->  Prop (Bisimilar j xs ys)) 
-                -> Prop (Bisimilar i (SCons x xs) (SCons x ys)) @-}
+                -> Prop (Bisimilar i (x :> xs) (x :> ys)) @-}
 
 
 
 
 odds :: Stream a -> Stream a
-odds (SCons x xs) = SCons x (odds (stail xs)) 
+odds (x :> xs) = x :> (odds (stail xs)) 
 
 evens :: Stream a -> Stream a
 evens xs = odds (stail xs) 
 
 merge :: Stream a -> Stream a -> Stream a 
-merge (SCons x xs) ys = SCons x (merge ys xs)  
+merge (x :> xs) ys = x :> (merge ys xs)  
 
 {-@ reflect odds  @-}
 {-@ reflect evens @-}
@@ -67,14 +70,14 @@ merge (SCons x xs) ys = SCons x (merge ys xs)
 
 shead :: Stream a -> a 
 stail :: Stream a -> Stream a 
-shead (SCons x _ ) = x 
-stail (SCons _ xs) = xs 
+shead (x :> _ ) = x 
+stail (_ :> xs) = xs 
 
 {-@ reflect take @-}
 {-@ take :: Nat -> Stream a -> [a] @-}
 take :: Int -> Stream a -> [a]
 take 0 _ = [] 
-take i (SCons x xs) = x:take (i-1) xs 
+take i (x :> xs) = x:take (i-1) xs 
 
 {-@ assume takeLemma :: x:Stream a -> y:Stream a -> n:Nat 
                      -> {x = y <=> take n x = take n y} @-}
@@ -85,13 +88,13 @@ takeLemma _ _ _ = ()
 {-@ theorem :: xs:Stream a 
             -> i:Nat ->  Prop (Bisimilar i  (merge (odds xs) (evens xs)) (xs)) @-}
 theorem :: (Eq a, Eq (Stream a)) => Stream a -> Int -> Bisimilar a   
-theorem (SCons x xs) i 
+theorem (x :> xs) i 
   = Bisim i x (merge (odds xs) (evens xs)) xs (theorem xs)
   ? lhs
-  where lhs =  merge (odds (x `SCons` xs)) (evens (x `SCons` xs))
-           === merge (x `SCons` odds (stail xs)) (odds (stail (x `SCons` xs))) 
-           === x `SCons` merge (odds (stail (x `SCons` xs))) (odds (stail xs))
-           === x `SCons` merge (odds xs) (evens xs)
+  where lhs =  merge (odds (x :> xs)) (evens (x :> xs))
+           === merge (x :> odds (stail xs)) (odds (stail (x :> xs))) 
+           === x :> merge (odds (stail (x :> xs))) (odds (stail xs))
+           === x :> merge (odds xs) (evens xs)
            *** QED 
 
 
