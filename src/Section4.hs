@@ -2,6 +2,7 @@
 {-@ LIQUID "--no-structural-termination" @-}
 {-@ LIQUID "--no-adt" @-}
 
+{-# LANGUAGE GADTs #-}
 module Section4 where 
 
 import Prelude hiding (take)
@@ -10,6 +11,22 @@ import Language.Haskell.Liquid.ProofCombinators
 
 infixr :>
 data Stream a =  a :> Stream a 
+
+
+{-@ measure eq :: Stream a -> Stream a -> Bool @-}
+{-@ type RBisimilar a X Y = {v:Bisimilar a | eq X Y } @-}
+
+data Bisimilar a where 
+      Bisim :: a -> Stream a -> Stream a -> Bisimilar a 
+{-@ data Bisimilar a where 
+          Bisim :: x:a -> xs:Stream a -> ys:Stream a 
+                -> RBisimilar a {(scons x xs)} {(scons x ys)} @-}
+
+-- you cannot put infix above, so defining cons 
+{-@ reflect scons @-}
+scons :: a -> Stream a -> Stream a 
+scons x xs = x :> xs 
+
 
 odds :: Stream a -> Stream a
 odds (x :> xs) = x :> odds (stail xs) 
