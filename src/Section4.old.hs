@@ -14,17 +14,6 @@ data Stream a =  a :> Stream a
 
 
 {-@ measure eq :: Stream a -> Stream a -> Bool @-}
-{-@ type RBisimilar0 a X Y = {v:Bisimilar0 a | eq X Y } @-}
-
-data Bisimilar0 a where 
-      Bisim0 :: a -> Stream a -> Stream a -> Bisimilar0 a -> Bisimilar0 a 
-{-@ data Bisimilar0 a where 
-          Bisim0 :: x:a -> xs:Stream a -> ys:Stream a 
-                -> RBisimilar0 a xs ys 
-                -> RBisimilar0 a {(scons x xs)} {(scons x ys)} @-}
-
-
-
 {-@ type RBisimilar a I X Y = {v:Bisimilar a | eq X Y } @-}
 
 data Bisimilar a where 
