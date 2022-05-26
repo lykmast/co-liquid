@@ -1,56 +1,59 @@
+{-@ LIQUID "--ple-local" @-}
 {-@ LIQUID "--reflection" @-}
-{-@ LIQUID "--no-structural-termination" @-}
 {-@ LIQUID "--no-adt" @-}
 
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE FlexibleContexts #-}
 module Section4 where 
 
 import Prelude hiding (take)
 
 import Language.Haskell.Liquid.ProofCombinators 
+data Stream a = SCons a (Stream a) 
 
-infixr :>
-data Stream a =  a :> Stream a 
+-- Sadly, infix constructor does not play well with GADTs
 
-
-{-@ measure eq :: Stream a -> Stream a -> Bool @-}
-{-@ type RBisimilar0 a X Y = {v:Bisimilar0 a | eq X Y } @-}
-
-data Bisimilar0 a where 
-      Bisim0 :: a -> Stream a -> Stream a -> Bisimilar0 a -> Bisimilar0 a 
-{-@ data Bisimilar0 a where 
-          Bisim0 :: x:a -> xs:Stream a -> ys:Stream a 
-                -> RBisimilar0 a xs ys 
-                -> RBisimilar0 a {(scons x xs)} {(scons x ys)} @-}
+-- Without Guardedness we can prove false :(
+data PropositionNG a = BisimilarNG (Stream a) (Stream a)
 
 
+-- 
+data BisimilarNG a where 
+      BisimNG :: a -> Stream a -> Stream a 
+            -> BisimilarNG a 
+            -> BisimilarNG a 
+{-@ data BisimilarNG a where 
+          BisimNG :: x:a -> xs:Stream a -> ys:Stream a 
+                -> Prop (BisimilarNG xs ys) 
+                -> Prop (BisimilarNG (SCons x xs) (SCons x ys)) @-}
 
-{-@ type RBisimilar a I X Y = {v:Bisimilar a | eq X Y } @-}
+falseProp :: Stream a -> Stream a ->  BisimilarNG a -> ()
+{-@ falseProp :: x:Stream a -> y:Stream a -> Prop (BisimilarNG x y) -> {false} @-}
+falseProp _ _ (BisimNG a x y p)
+  = falseProp x y p 
 
+-- Let's Guard it! 
+data Proposition a = Bisimilar Int (Stream a) (Stream a)
 data Bisimilar a where 
       Bisim :: Int -> a -> Stream a -> Stream a 
             -> (Int -> Bisimilar a) 
             -> Bisimilar a 
 {-@ data Bisimilar a where 
           Bisim :: i:Nat -> x:a -> xs:Stream a -> ys:Stream a 
-                -> (j:{j:Nat | j < i} ->  RBisimilar a j xs ys) 
-                -> RBisimilar a {i} {(scons x xs)} {(scons x ys)} @-}
+                -> (j:{j:Nat | j < i} ->  Prop (Bisimilar j xs ys)) 
+                -> Prop (Bisimilar i (SCons x xs) (SCons x ys)) @-}
 
 
--- you cannot put infix above, so defining cons 
-{-@ reflect scons @-}
-scons :: a -> Stream a -> Stream a 
-scons x xs = x :> xs 
 
 
 odds :: Stream a -> Stream a
-odds (x :> xs) = x :> odds (stail xs) 
+odds (SCons x xs) = SCons x (odds (stail xs)) 
 
 evens :: Stream a -> Stream a
 evens xs = odds (stail xs) 
 
 merge :: Stream a -> Stream a -> Stream a 
-merge (x :> xs) ys = x :> merge ys xs  
+merge (SCons x xs) ys = SCons x (merge ys xs)  
 
 {-@ reflect odds  @-}
 {-@ reflect evens @-}
@@ -64,14 +67,14 @@ merge (x :> xs) ys = x :> merge ys xs
 
 shead :: Stream a -> a 
 stail :: Stream a -> Stream a 
-shead (x :> _ ) = x 
-stail (_ :> xs) = xs 
+shead (SCons x _ ) = x 
+stail (SCons _ xs) = xs 
 
 {-@ reflect take @-}
 {-@ take :: Nat -> Stream a -> [a] @-}
 take :: Int -> Stream a -> [a]
 take 0 _ = [] 
-take i (x :> xs) = x:take (i-1) xs 
+take i (SCons x xs) = x:take (i-1) xs 
 
 {-@ assume takeLemma :: x:Stream a -> y:Stream a -> n:Nat 
                      -> {x = y <=> take n x = take n y} @-}
@@ -79,66 +82,36 @@ takeLemma :: Stream a -> Stream a -> Int -> ()
 takeLemma _ _ _ = () 
 
 
-{-@ measure eqK :: Stream a -> Stream a -> Nat -> Bool @-}
-
-eqKAxiom :: Int -> Stream a -> Stream a -> () 
-        -> (Int -> ())
-        -> () 
-
-{-@ assume eqKAxiom :: i:Nat -> x:Stream a -> y:Stream a 
-                   -> {v:() | shead x == shead y} 
-                   -> (j:{Nat | j < i} -> {v:() | eqK (stail x) (stail y) j})
-                   -> {eqK x y i}  @-}     
-eqKAxiom _ _ _ _ _ = ()    
-
-
-eqKAxiomREV1 :: Int -> Stream a -> Stream a -> () 
-        -> () 
-eqKAxiomREV2 :: Int -> Stream a -> Stream a -> () 
-        -> (Int -> ())
-{-@ assume eqKAxiomREV1 :: i:Nat -> x:Stream a -> y:Stream a 
-                   -> {v:() |eqK x y i}    
-                   -> {v:() | shead x == shead y}  @-}  
-eqKAxiomREV1 _ _ _ _ = () 
-
-
-{-@ assume eqKAxiomREV2 :: i:Nat -> x:Stream a -> y:Stream a 
-                   -> {v:() |eqK x y i}    
-                   -> (j:{Nat | j < i} -> {v:() | eqK (stail x) (stail y) j})
-                   @-}  
-eqKAxiomREV2 _ _ _ _ _ = () 
-
-
 {-@ theorem :: xs:Stream a 
-            -> i:Nat -> {v : () | eqK (merge (odds xs) (evens xs)) xs i } @-}
-theorem :: Eq a => Stream a -> Int -> ()  
-theorem ys@(x :> xs) i 
-  = eqKAxiom i (merge (odds (x :> xs)) (evens (x :> xs))) (x :> xs)
-            lhs rhs
-  where lhs =  shead (merge (odds (x :> xs)) (evens (x :> xs)))
-           === shead (merge (x :> odds (stail xs)) (odds (stail (x :> xs)))) 
-           === shead (x :> merge (odds (stail (x :> xs))) (odds (stail xs)))
-           === shead (x :> xs)  
+            -> i:Nat ->  Prop (Bisimilar i  (merge (odds xs) (evens xs)) (xs)) @-}
+theorem :: (Eq a, Eq (Stream a)) => Stream a -> Int -> Bisimilar a   
+theorem (SCons x xs) i 
+  = Bisim i x (merge (odds xs) (evens xs)) xs (theorem xs)
+  ? lhs
+  where lhs =  merge (odds (x `SCons` xs)) (evens (x `SCons` xs))
+           === merge (x `SCons` odds (stail xs)) (odds (stail (x `SCons` xs))) 
+           === x `SCons` merge (odds (stail (x `SCons` xs))) (odds (stail xs))
+           === x `SCons` merge (odds xs) (evens xs)
            *** QED 
-        rhs j =  theorem (stail (x :> xs)) j 
-              ?   ( stail (merge (odds (x :> xs)) (evens (x :> xs)))
-               === merge (odds xs) (evens xs)
-               *** QED) 
 
-eqKLemma :: Eq a => Stream a -> Stream a -> Int -> () -> () 
+
+{-@ ple eqKLemma @-}
+eqKLemma :: (Eq (Stream a), Eq a) => Stream a -> Stream a -> Int -> Bisimilar a -> () 
 {-@ eqKLemma :: x:Stream a -> y:Stream a 
-                  -> i:Nat -> { v:() | eqK x y i} 
+                  -> i:Nat -> (Prop (Bisimilar i x y)) 
                   ->  {take i x = take i y} @-}
-eqKLemma x y 0 _ = take 0 x === take 0 y *** QED 
-eqKLemma (x :> xs) (y :> ys) i p 
-  = (take i (x :> xs) == take i (y :> ys)) 
-  ? (x == y && take (i-1) xs == take (i-1) ys)
-  ? eqKAxiomREV1 i (x :> xs) (y :> ys) p 
-  ? eqKLemma xs ys (i-1) (eqKAxiomREV2 i (x :> xs) (y :> ys) p (i-1))
-  *** QED 
+eqKLemma _x _ 0 _ = () 
+eqKLemma _x _ _i (Bisim i x xs ys p)
+  = eqKLemma xs ys (i-1) (p (i-1))
 
 
-approx :: Eq a => Stream a -> Stream a -> Int -> () -> () 
+{-@ assert :: b:{Bool | b } -> {b} @-} 
+assert :: Bool -> () 
+assert _ = ()
+
+
+approx :: (Eq (Stream a), Eq a) => Stream a -> Stream a -> Int -> Bisimilar a -> () 
 {-@ approx :: x:Stream a -> y:Stream a 
-                  -> i:Nat -> {v:() | eqK x y i} -> { x = y } @-}
+                  -> i:Nat -> Prop (Bisimilar i x y) 
+                  -> { x = y } @-}
 approx x y i p = eqKLemma x y i p ? takeLemma x y i  

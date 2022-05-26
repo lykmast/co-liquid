@@ -19,6 +19,7 @@ library
       IStream
       LList
       Overview
+      PaperStream
       Paulson
       Section3
       Section4

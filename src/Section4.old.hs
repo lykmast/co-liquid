@@ -99,11 +99,11 @@ eqKAxiomREV2 _ _ _ _ _ = ()
 
 
 {-@ theorem :: xs:Stream a 
-            -> i:Nat -> {v : () | eqK (merge (odds xs) (evens xs)) xs i } @-}
-theorem :: Eq a => Stream a -> Int -> ()  
+            -> i:Nat ->  RBisimilar a {i} {merge (odds xs) (evens xs)} {xs} @-}
+theorem :: Eq a => Stream a -> Int -> Bisimilar a   
 theorem ys@(x :> xs) i 
-  = eqKAxiom i (merge (odds (x :> xs)) (evens (x :> xs))) (x :> xs)
-            lhs rhs
+  = Bisim i x (merge (odds xs) (evens xs)) xs
+          rhs
   where lhs =  shead (merge (odds (x :> xs)) (evens (x :> xs)))
            === shead (merge (x :> odds (stail xs)) (odds (stail (x :> xs)))) 
            === shead (x :> merge (odds (stail (x :> xs))) (odds (stail xs)))
