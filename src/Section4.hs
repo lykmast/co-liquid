@@ -17,9 +17,10 @@ data Stream a =  a :> Stream a
 {-@ type RBisimilar a X Y = {v:Bisimilar a | eq X Y } @-}
 
 data Bisimilar a where 
-      Bisim :: a -> Stream a -> Stream a -> Bisimilar a 
+      Bisim :: a -> Stream a -> Stream a -> Bisimilar a -> Bisimilar a 
 {-@ data Bisimilar a where 
           Bisim :: x:a -> xs:Stream a -> ys:Stream a 
+                -> RBisimilar a xs ys 
                 -> RBisimilar a {(scons x xs)} {(scons x ys)} @-}
 
 -- you cannot put infix above, so defining cons 
