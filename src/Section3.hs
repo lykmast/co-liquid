@@ -104,15 +104,17 @@ take :: Int -> Stream a -> [a]
 take 0 _ = [] 
 take i (x :> xs) = x:take (i-1) xs 
 
-{-@ assume takeLemma :: x:Stream a -> y:Stream a -> n:Nat 
-                     -> {x = y <=> take n x = take n y} @-}
-takeLemma :: Stream a -> Stream a -> Int -> () 
+{-@ assume takeLemma :: x:Stream a -> y:Stream a 
+                     -> (n:Nat -> {v:() | take n x = take n y})
+                     -> {x = y} @-}
+takeLemma :: Stream a -> Stream a -> (Int -> ()) -> ()  
 takeLemma _ _ _ = () 
 
-{-@ approx :: x:Stream a -> y:Stream a -> n:Nat 
-                     -> {x = y <=> eqK x y n} @-}
-approx :: Eq a => Stream a -> Stream a -> Int -> () 
-approx xs ys k = eqLemma xs ys k ? takeLemma xs ys k  
+{-@ approx :: x:Stream a -> y:Stream a 
+           -> (n:Nat -> {v:() | eqK x y n })
+           -> { x = y } @-}
+approx :: Eq a => Stream a -> Stream a -> (Int -> ()) -> ()  
+approx xs ys p =  takeLemma xs ys (\n -> (p n ? eqLemma xs ys n))  
 
 
 {-@ eqLemma :: x:Stream a -> y:Stream a -> n:Nat 

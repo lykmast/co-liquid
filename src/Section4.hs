@@ -79,9 +79,9 @@ take :: Int -> Stream a -> [a]
 take 0 _ = [] 
 take i (x :> xs) = x:take (i-1) xs 
 
-{-@ assume takeLemma :: x:Stream a -> y:Stream a -> n:Nat 
-                     -> {x = y <=> take n x = take n y} @-}
-takeLemma :: Stream a -> Stream a -> Int -> () 
+{-@ assume takeLemma :: x:Stream a -> y:Stream a 
+                     -> (n:Nat -> {v:() | take n x = take n y}) -> {x = y} @-}
+takeLemma :: Stream a -> Stream a -> (Int -> ()) -> ()
 takeLemma _ _ _ = () 
 
 
@@ -113,8 +113,8 @@ assert :: Bool -> ()
 assert _ = ()
 
 
-approx :: (Eq (Stream a), Eq a) => Stream a -> Stream a -> Int -> Bisimilar a -> () 
+approx :: (Eq (Stream a), Eq a) => Stream a -> Stream a -> (Int -> Bisimilar a) -> () 
 {-@ approx :: x:Stream a -> y:Stream a 
-                  -> i:Nat -> Prop (Bisimilar i x y) 
+                  -> (i:Nat -> Prop (Bisimilar i x y)) 
                   -> { x = y } @-}
-approx x y i p = eqKLemma x y i p ? takeLemma x y i  
+approx x y p = takeLemma x y (\i -> eqKLemma x y i (p i))  
