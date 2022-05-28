@@ -22,10 +22,12 @@ library
       SizedTypes.CoList
       SizedTypes.List
       SizedTypes.ListProofs
+      SizedTypes.ListProofsGADTs
       SizedTypes.ReflectedStream
       SizedTypes.Size
       SizedTypes.Stream
       SizedTypes.StreamProofs
+      SizedTypes.StreamProofsGADTs
       SizedTypes.TelfordTurner
       Stream
       Streams
