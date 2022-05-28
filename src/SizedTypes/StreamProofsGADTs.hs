@@ -68,7 +68,11 @@ dup (x :> y :> xs) = x == y && dup xs
 ---------------------------------------------
 -- Coinductive predicates
 
-data Proposition a = Bisimilar Int (Stream a) (Stream a)
+data Proposition a = Bisimilar  Int (Stream a  ) (Stream a  )
+                   | Below      Int (Stream Int) (Stream Int)
+                   | TrueStream Int (Stream a)
+                   | Dup        Int (Stream a)
+
 data Bisimilar a where
       Bisim :: Int -> a -> Stream a -> Stream a
             -> (Int -> Bisimilar a)
@@ -85,29 +89,20 @@ data Bisimilar a where
 bisimAxiom = approx -- proven later with the (axiomatized) take lemma
 
 -- Lexicographic ordering
-data PropBelow = Below Int (Stream Int) (Stream Int)
 data Below where
-      Bel0 :: Int
-           -> Int         -- if the heads are equal
-           -> Stream Int -> Stream Int
+      Bel0 :: Int -> Int -> Stream Int -> Stream Int -- if heads are =
            -> (Int -> Below) -- then streams need to prove they are <=
            -> Below
-      Bel1 :: Int
-           -> Int -> Int  -- if the heads are <
+      Bel1 :: Int -> Int -> Int  -- if heads are <
            -> Stream Int -> Stream Int
            -> Below       -- then the streams are <
-{-@
-data Below where
-       Bel0 :: i:Nat
-            -> x:Int
-            -> xs:Stream Int -> ys:Stream Int
+{-@ data Below where
+       Bel0 :: i:Nat -> x:Int -> xs:Stream Int -> ys:Stream Int
             -> (j:{j:Nat | j < i} ->  Prop (Below j xs ys))
             -> Prop (Below i (x :> xs) (x :> ys))
-       Bel1 :: i:Nat
-            -> x:Int -> {y:Int| x < y}
+       Bel1 :: i:Nat -> x:Int -> {y:Int| x < y}
             -> xs:Stream Int -> ys:Stream Int
-            -> Prop (Below i (x :> xs) (y :> ys))
-@-}
+            -> Prop (Below i (x :> xs) (y :> ys)) @-}
 
 
 
@@ -118,21 +113,14 @@ belAxiom :: Stream Int -> Stream Int -> (Int -> Below) -> Proof
 belAxiom x y p = ()
 
 -- Trivial predicate
-data PropTrueS a = TrueStream Int (Stream a)
 data TrueStream a where
-      TrueS :: Int
-            -> a                     -- whatever the head
-            -> Stream a
+      TrueS :: Int -> a -> Stream a  -- whatever the head
             -> (Int -> TrueStream a) -- and tail is any
             -> TrueStream a          -- => the whole stream is any
-{-@
-data TrueStream a where
-       TrueS :: i:Nat
-             -> x:a
-             -> xs:Stream a
+{-@ data TrueStream a where
+       TrueS :: i:Nat -> x:a -> xs:Stream a
              -> (j:{j:Nat | j < i} ->  Prop (TrueStream j xs))
-             -> Prop (TrueStream i (x :> xs))
-@-}
+             -> Prop (TrueStream i (x :> xs)) @-}
 
 
 
@@ -143,22 +131,15 @@ trueSAxiom :: Stream a -> (Int -> TrueStream a) -> Proof
 trueSAxiom x p = ()
 
 
-data PropDup a = Dup Int (Stream a)
 data Dup a where
-      MkDup :: Int
-            -> a                     -- whatever the head
-            -> Stream a
-            -> (Int -> Dup a) -- and tail is dup
-            -> Dup a          -- => the stream with duplicated
-                                     --     head is dup
-{-@
-data Dup a where
-       MkDup  :: i:Nat
-              -> x:a
-              -> xs:Stream a
+      MkDup :: Int -> a -> Stream a -- whatever the head
+            -> (Int -> Dup a)       -- and tail is dup
+            -> Dup a                -- => the stream with duplicated
+                                    --     head is dup
+{-@ data Dup a where
+       MkDup  :: i:Nat -> x:a -> xs:Stream a
               -> (j:{j:Nat | j < i} ->  Prop (Dup j xs))
-              -> Prop (Dup i (x :> x :> xs))
-@-}
+              -> Prop (Dup i (x :> x :> xs)) @-}
 
 
 {-@ assume dupAxiom :: x:Stream a
@@ -170,12 +151,10 @@ dupAxiom x p = ()
 ---------------------------------------------
 -- Proofs
 
-{-@
-lemmaEvenOdd :: xs:Stream a
-             -> i:Nat
-             ->  Prop (Bisimilar i  (merge (odds xs) (evens xs)) (xs))
+{-@ lemmaEvenOdd :: xs:Stream a
+                 -> i:Nat
+                 ->  Prop (Bisimilar i  (merge (odds xs) (evens xs)) (xs))
 @-}
-lemmaEvenOdd :: Stream a -> Int -> Bisimilar a
 lemmaEvenOdd xxs@(x :> xs) i
   = Bisim i x (merge (odds xs) (evens xs)) xs (lemmaEvenOdd xs)
      ? ( merge (odds xxs) (evens xxs)
@@ -192,9 +171,8 @@ lemmaEvenOddOriginal xs =
 -- | In the rest we don't use the axioms in cases where
 --     it is redundant
 
-{-@
-theoremBelowSquare :: xs:_ -> i:Nat -> Prop (Below i xs (mult xs xs))
-@-}
+{-@ theoremBelowSquare :: xs:_ -> i:Nat
+                       -> Prop (Below i xs (mult xs xs)) @-}
 theoremBelowSquare xxs@(x :> xs) i
   | x == x*x
   = Bel0 i x xs (mult xs xs) (theoremBelowSquare xs)
@@ -205,8 +183,8 @@ theoremBelowSquare xxs@(x :> xs) i
           === x*x :> mult xs xs
           *** QED
 
-{-@ thTrueStream :: xs:_ -> i:Nat -> Prop (TrueStream i xs) @-}
-thTrueStream (x :> xs) i = TrueS i x xs (thTrueStream xs)
+{-@ trueLemma :: xs:_ -> i:Nat -> Prop (TrueStream i xs) @-}
+trueLemma (x :> xs) i = TrueS i x xs (trueLemma xs)
 
 
 {-@
@@ -235,8 +213,7 @@ theoremNotFS :: xs:_ -> i:Nat
 @-}
 theoremNotFS xxs@(x :> xs) i
   =       Bisim i (not x) tlLhs tlRhs
-  $ \j -> Bisim j (not (not x))
-                  (map not (f xs))
+  $ \j -> Bisim j (not (not x)) (map not (f xs))
                   (f (map not xs)) (theoremNotFS xs)
   where
     lhs

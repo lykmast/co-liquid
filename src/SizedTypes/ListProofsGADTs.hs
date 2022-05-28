@@ -51,6 +51,8 @@ isInfinite Nil       = False
 -- | Coinductive predicates
 
 data Proposition a = Bisimilar Int (List a) (List a)
+                   | Infinite  Int (List a)
+
 data Bisimilar a where
       BisimNil :: Int
                -> List a -> List a
@@ -74,7 +76,6 @@ assume bisimAxiom :: x:List a -> y:List a
 bisimAxiom :: List a -> List a -> (Int -> Bisimilar a) -> Proof
 bisimAxiom x y p = ()
 
-data PropInf a = Infinite Int (List a)
 data Infinite a where
   Inf :: Int
       -> a
