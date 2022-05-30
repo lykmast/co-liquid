@@ -4,7 +4,7 @@
 
 module Section3 where 
 
-import Prelude hiding (take)
+import Prelude hiding (take, map)
 
 import Language.Haskell.Liquid.ProofCombinators hiding (QED, (***))
 
@@ -32,6 +32,27 @@ lift p (x:>xs) (y:>ys) k = p x y && lift p xs ys (k-1)
 {-@ reflect eq @-}
 eq :: Eq a => a -> a -> Bool 
 eq x y = x == y 
+
+{-@ reflect map @-}
+map :: (a -> b) -> Stream a -> Stream b 
+map f (x :> xs) = f x :> map f xs 
+
+
+{-@ stream_fusion :: xs:Stream a -> f:(a -> a) -> g:(a -> a)
+            -> k:Nat -> {v : () | lift eq (map (f . g) xs) (map f (map g xs))  k } @-}
+stream_fusion :: Eq a => Stream a -> (a -> a) -> (a -> a) -> Int -> ()  
+stream_fusion xs f g 0 = lift eq (map (f . g) xs) (map f (map g xs))  0 *** QED  
+stream_fusion (x :> xs) f g k 
+  =   map (f . g) (x :> xs)
+  === (f . g) x :> map (f . g) xs
+  === f (g x) :> map (f . g) xs
+      ? stream_fusion xs f g (k-1) -- lift eq (merge (odds xs) (evens xs)) (xs) k
+  =#=  k # 
+      f (g x) :> map f (map g xs)
+  === map f (g x :> map g xs)
+  === map f (map g (x :> xs))
+  *** QED 
+
 
 {-@ theorem :: xs:Stream a 
             -> k:Nat -> {v : () | lift eq (merge (odds xs) (evens xs)) (xs) k } @-}
