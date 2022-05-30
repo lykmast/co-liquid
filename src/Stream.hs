@@ -282,13 +282,12 @@ _theoremBelowSquareK 0 as
   =   _belowK 0 as (mult as as)
   *** QED
 _theoremBelowSquareK k (a :> as)
-  =   _belowK k (a :> as) (mult (a :> as) (a :> as))
-  === _belowK k (a :> as) (a * a :> mult as as)
-  === (a <= a*a &&
-        ((a == a*a) `implies` _belowK (k-1) as (mult as as)))
-    ? _theoremBelowSquareK (k-1) as
+   =  a :> as
+   ?  _theoremBelowSquareK (k-1) as
+  <=# k #
+      a * a :> mult as as
+  === mult (a :> as) (a :> as)
   *** QED
-
 {-@ _lemmaEvenOddK :: k: Nat -> xs:_
                    -> {eqK k (merge (odds xs) (evens xs)) xs}
 @-}
@@ -364,7 +363,21 @@ infixr 1 #
 (#) = ($)
 
 infix 2 =#=
-{-@ (=#=) :: Eq a => x:Stream a -> k:{Nat | 0 < k } -> y:{Stream a | eqK (k-1) (tl x) (tl y) && hd x == hd y } -> {v:Stream a | eqK k x y && v == x } @-}
+{-@ (=#=) :: Eq a => x:Stream a -> k:{Nat | 0 < k }
+          -> y:{Stream a | eqK (k-1) (tl x) (tl y) && hd x == hd y }
+          -> {v:Stream a | eqK k x y && v == y } @-}
 (=#=) :: Eq a => Stream a -> Int -> Stream a -> Stream a
 (=#=)  xxs@(x :> xs) k yys@(y :> ys) =
-  xxs ? (eqK k xxs yys === (x == y && eqK (k-1) xs ys) *** QED)
+  yys ? (eqK k xxs yys === (x == y && eqK (k-1) xs ys) *** QED)
+
+infix 2 <=#
+{-@ (<=#) :: x:Stream Int -> k:{Nat | 0 < k}
+          -> y:{Stream Int | (_belowK (k-1) (tl x) (tl y) && hd x == hd y)
+                              || hd x < hd y}
+          -> {v:Stream Int | _belowK k x y && v = y } @-}
+(<=#) :: Stream Int -> Int -> Stream Int -> Stream Int
+(<=#)  xxs@(x :> xs) k yys@(y :> ys) =
+  yys ? (_belowK k xxs yys
+    === (x <= y && ((x == y) `implies` _belowK (k-1) xs ys))
+    === (x < y || (x == y && _belowK (k-1) xs ys))
+    *** QED)
