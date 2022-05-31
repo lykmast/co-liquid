@@ -53,15 +53,15 @@ unsafe xs = shead xs
 
 -- | 2.3 Inductive Deep Verification
 
-{-@ smap_fusion :: f:(b -> c) -> g:(a -> b) -> xs:Stream a 
+{-@ mapFusion :: f:(b -> c) -> g:(a -> b) -> xs:Stream a 
             -> { smap f (smap g xs) == smap (f . g) xs } @-}
-smap_fusion :: (b -> c) -> (a -> b) -> Stream a -> () 
-smap_fusion f g E = () 
-smap_fusion f g (x :> xs)
+mapFusion :: (b -> c) -> (a -> b) -> Stream a -> () 
+mapFusion f g E = () 
+mapFusion f g (x :> xs)
   =   smap f (smap g (x :> xs))
   === smap f (g x :> smap g xs) 
   === f (g x) :> smap f (smap g xs) 
-      ? smap_fusion f g xs 
+      ? mapFusion f g xs 
   === (f . g) x :> smap (f . g) xs 
   === smap (f . g) (x :> xs) 
   *** QED 
@@ -74,7 +74,7 @@ falseStream (_ :> xs) = falseStream xs
 falseStream _ = undefined 
 
 
-{-@ smap_fusion' :: f:(b -> c) -> g:(a -> b) -> xs:Stream a 
+{-@ mapFusion' :: f:(b -> c) -> g:(a -> b) -> xs:Stream a 
             -> { smap f (smap g xs) == smap (f . g) xs } @-}
-smap_fusion' :: (b -> c) -> (a -> b) -> Stream a -> () 
-smap_fusion' f g xs = falseStream xs  
+mapFusion' :: (b -> c) -> (a -> b) -> Stream a -> () 
+mapFusion' f g xs = falseStream xs  
