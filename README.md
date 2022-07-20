@@ -1,10 +1,11 @@
 # co-liquid
 >Coinduction in Liquid Haskell
 
-Examples of what this implementation includes are:
-  - **Support for co-inductive proofs**, such as the [merge evens odds proof](#theorems--proofs).
-  - **Checks for productivity of corecursive functions**, such as [`fib` and `zipWith`](#implementation)
+This repository contains encodings of coinductive features in Liquid Haskell. Namely:
+  - **Co-inductive proofs**, as explained in [Coinduction Inductively: Mechanizing Coinductive Proofs in Liquid Haskell](https://nikivazou.github.io/static/Haskell22/coinduction.pdf). The code relevant to the paper is located in [src/Paper](src/Paper).
+  - **Checks for productivity of corecursive functions**, which are discussed in my thesis (TBD).
 
+<!--
 This implementation is *heavily* inspired by the respective implementations of Coinduction in Dafny and Agda. What follows is a summary of those two approaches, along with the elements we adopt, and a small [comparison](#comparison-of-the-two-approaches).
 
 ## 1. [Co-induction Simply](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/coinduction.pdf)
@@ -374,3 +375,4 @@ Sized types seem to be more expressive in dealing with co-induction than the par
 The main disadvantage of sized types (as currently implemented) is the cluttering of function definitions with size annotations for productivity and the resulting need to rewrite definitions without sizes in order to obtain readable proofs.
 
 There are more arguments to be made regarding the way each approach will be implemented (in terms of desugaring, syntactic checks etc.), but that requires a slightly deeper consideration.
+--!>
