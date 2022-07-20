@@ -17,11 +17,10 @@ library
       Dup
       LList
       Morse
-      PaperStream
+      Paper.Section2
+      Paper.Section3
+      Paper.Section4
       Paulson
-      Section2
-      Section3
-      Section4
       SizedTypes.BF
       SizedTypes.CoList
       SizedTypes.List
