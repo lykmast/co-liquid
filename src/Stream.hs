@@ -365,10 +365,10 @@ infixr 1 #
 infix 2 =#=
 {-@ (=#=) :: Eq a => x:Stream a -> k:{Nat | 0 < k }
           -> y:{Stream a | eqK (k-1) (tl x) (tl y) && hd x == hd y }
-          -> {v:Stream a | eqK k x y && v == y } @-}
+          -> {v:Stream a | eqK k x y && v == x } @-}
 (=#=) :: Eq a => Stream a -> Int -> Stream a -> Stream a
 (=#=)  xxs@(x :> xs) k yys@(y :> ys) =
-  yys ? (eqK k xxs yys === (x == y && eqK (k-1) xs ys) *** QED)
+  xxs ? (eqK k xxs yys === (x == y && eqK (k-1) xs ys) *** QED)
 
 infix 2 <=#
 {-@ (<=#) :: x:Stream Int -> k:{Nat | 0 < k}

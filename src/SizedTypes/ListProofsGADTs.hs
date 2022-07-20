@@ -18,8 +18,8 @@ infixr 5 :|
 emp Nil = True
 emp _   = False
 
-{-@ type ListNE a = {v:List a | not (emp v)} @-}
-{-@ type Emp    a = {v:List a | emp v } @-}
+{-@ type ListNE a = {v:List a | v /= Nil} @-}
+{-@ type Emp    a = {v:List a | v = Nil } @-}
 {-@ measure hd @-}
 {-@ hd :: ListNE _ -> _ @-}
 hd (x :| _) = x
@@ -42,6 +42,10 @@ infixr 5 ++
 map :: (a -> b) -> List a -> List b
 map _ Nil       = Nil
 map f (x :| xs) = (f x) :| map f xs
+
+{-@ reflect repeat @-}
+repeat :: a -> List a
+repeat x = x :| repeat x
 
 -- | Predicates
 {-@ reflect isInfinite @-}
@@ -157,6 +161,22 @@ lemmaMapInfiniteS f xxs@(x :| xs) i =
   Inf i (f x) (map f xs) (lemmaMapInfiniteS f (xs ?infTail)) ? expand
   where expand =  map f xxs
               === f x :| map f xs
+              *** QED
+        infTail = isInfinite xxs
+               === isInfinite xs
+               *** QED
+
+{-@ repeatInfinite :: x:_ -> i:Nat -> Prop (Infinite i (repeat x)) @-}
+repeatInfinite x i = Inf i x (repeat x) (repeatInfinite x)
+{-@
+appendInfiniteS :: {xs:_| isInfinite xs} -> ys:_ -> i:Nat
+                  -> Prop (Infinite i (xs ++ ys))@-}
+appendInfiniteS xs@Nil ys _ =
+  absurd (xs ? (isInfinite xs === False *** QED))
+appendInfiniteS xxs@(x :| xs) ys i =
+  Inf i x (xs ++ ys) (appendInfiniteS (xs ?infTail) ys) ? expand
+  where expand =  xxs ++ ys
+              === x :| xs ++ ys
               *** QED
         infTail = isInfinite xxs
                === isInfinite xs

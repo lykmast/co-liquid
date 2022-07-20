@@ -170,6 +170,22 @@ lemmaEvenOddOriginal xs =
 -----------------
 -- | In the rest we don't use the axioms in cases where
 --     it is redundant
+{-@ infixr . @-}
+{-@ streamFusion :: f:_ -> g:_ -> xs:_ -> i:Nat
+                 -> Prop (Bisimilar i (map f (map g xs)) (map (f . g) xs))
+@-}
+streamFusion f g xxs@(x:>xs) i =
+  Bisim i ((f . g) x) (map f (map g xs)) (map (f . g) xs)
+        (streamFusion f g xs) ? expandL ? expandR
+  where expandL
+          =  map f (map g xxs)
+         === map f (g x :> map g xs)
+         === (f (g x)) :> map f (map g xs)
+         *** QED
+        expandR
+          =  map (f . g) xxs
+         === (f . g) x :> map (f . g) xs
+         *** QED
 
 {-@ theoremBelowSquare :: xs:_ -> i:Nat
                        -> Prop (Below i xs (mult xs xs)) @-}

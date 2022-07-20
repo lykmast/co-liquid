@@ -16,7 +16,7 @@ infixr 5 :>
 {-@ measure size :: Stream a -> Size @-}
 
 {-@ type StreamS a S = {v:Stream a| size v  = S } @-}
-{-@ type StreamG a S = {v:Stream a| size   v >= S } @-}
+{-@ type StreamG a S = {v:Stream a| size v >= S || inf v} @-}
 {-@ type StreamI a   = {v:Stream a| inf  v      } @-}
 
 {-@ hd :: s:Size -> {xs:_| s < size xs || inf xs} -> _ @-}
@@ -31,24 +31,27 @@ hdi = hd 0
 tli :: Stream a -> Stream a
 tli = tl 0
 
-{-@ assume tl :: forall <p::a -> Bool>. s:Size
-              -> {xs: Stream a<p>| s < size xs || inf xs}
-              -> {v: Stream a<p>| (size v = s) && (inf xs ==> inf v)} @-}
+{-@ assume tl :: s:Size
+              -> {xs: Stream a| s < size xs || inf xs}
+              -> {v: Stream a| (size v = s) && (inf xs ==> inf v)} @-}
 tl :: Size -> Stream a -> Stream a
 tl _ (_ :> xs) = xs
 
-{-@ mkIStream :: _ -> StreamI _ -> StreamI _ @-}
-mkIStream :: a -> Stream a -> Stream a
-mkIStream x xs = mkStream 0 (const x) (const xs)
-
-{-@ assume mkStream :: forall <p::a->Bool, q::Stream a -> Bool>
-                     . {i:Size | i>=0}
-                    -> ({j:Size|j<i} -> a<p>)
-                    -> ({j:Size|j<i} -> {xs:Stream<q> a<p>| size xs >= j})
-                    -> {v:Stream<q> a<p>|size v = i}
+{-@ assume mkStream :: {i:Size | i>=0}
+                    -> ({j:Size|j<i} -> a)
+                    -> ({j:Size|j<i} -> StreamG a j)
+                    -> {v:Stream a|size v = i}
 @-}
 mkStream :: Size -> (Size -> a) -> (Size -> Stream a) -> Stream a
 mkStream _ fx fxs = fx 0 :> fxs 0
+
+{-@ assume toInf :: (i:Size -> StreamG _ i) -> StreamI _ @-}
+toInf :: (Size -> Stream a) -> Stream a
+toInf f = f 0
+
+{-@ lazy bad @-}
+{-@ bad :: _ -> {v:_ | True == False} @-}
+bad x = x :> bad (x+1)
 
 {-@ repeat :: i:Size -> _ -> StreamG _ i @-}
 repeat i x = mkStream i (const x) (\j -> repeat j x)
@@ -109,8 +112,8 @@ toggle i = mkStream i (const 0) $ \j ->
 -- paperfolds = merge toggle paperfolds
 {-@ paperfolds :: i:Size -> StreamG _ i @-}
 paperfolds :: Num a =>  Size -> Stream a
-paperfolds i = mkStream i (\j -> hd j (toggle i)) $
-                           \j -> merge j (paperfolds j) (tl j (toggle i))
+paperfolds i = mkStream i (\j -> hdi (toInf toggle)) $
+                           \j -> merge j (paperfolds j) (tli (toInf toggle))
 
 {-@ fivesUp :: i:Size -> n:_
             -> StreamG {v:_ | v >= n} i / [i, fivesUpTerm n]
