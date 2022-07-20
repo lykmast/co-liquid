@@ -14,9 +14,7 @@ extra-source-files:
 
 library
   exposed-modules:
-      Dup
       LList
-      Morse
       Paper.Section2
       Paper.Section3
       Paper.Section4
@@ -41,7 +39,6 @@ library
       SizedTypes.StreamProofsGADTs
       SizedTypes.TelfordTurner
       Stream
-      Streams
   other-modules:
       Paths_co_liquid
   hs-source-dirs:
