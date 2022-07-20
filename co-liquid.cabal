@@ -20,6 +20,14 @@ library
       Paper.Section2
       Paper.Section3
       Paper.Section4
+      Paper.Section5.EqLemma
+      Paper.Section5.List
+      Paper.Section5.ListConstructive
+      Paper.Section5.ListIndexed
+      Paper.Section5.Stream
+      Paper.Section5.StreamConstructive
+      Paper.Section5.StreamIndexed
+      Paper.Section5.Tree
       Paulson
       SizedTypes.BF
       SizedTypes.CoList
