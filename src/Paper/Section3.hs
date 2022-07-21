@@ -1,109 +1,116 @@
+{-@ LIQUID "--ple-local" @-}
 {-@ LIQUID "--reflection" @-}
-{-@ LIQUID "--no-structural-termination" @-}
 {-@ LIQUID "--no-adt" @-}
 
-module Paper.Section3 where
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE FlexibleContexts #-}
+module Paper.Section4 where
 
 import Prelude hiding (take, map)
 
-import Language.Haskell.Liquid.ProofCombinators hiding (QED, (***))
+import Language.Haskell.Liquid.ProofCombinators
+
+{-@ infixr .  @-}
+{-@ infixr :> @-}
+
+-- | 4.1 Constructive Equality
+
+data EqC1 a where
+      EqRefl1 :: a -> Stream a -> Stream a
+              -> EqC1 a
+              -> EqC1 a
+{-@ data EqC1 a where
+          EqRefl1 :: x:a -> xs:Stream a -> ys:Stream a
+                  -> Prop (EqC1 xs ys)
+                  -> Prop (EqC1 (x :> xs) (x :> ys)) @-}
+
+data Proposition a = EqC1 (Stream a) (Stream a)
+                   | EqC Int (Stream a) (Stream a)
 
 
--- | 3.1 Consistent Approach: Indexed Properties
+-- | The problem: no guardedness condition.
 
-{-@ ignore falseStream @-}
-falseStream :: Stream a -> (Int -> ())
-{-@ falseStream :: Stream a -> k:Nat -> {false} / [k] @-}
-falseStream _ 0 = ()
-falseStream (_ :> xs) i = falseStream xs (i-1)
+falseProp :: Stream a -> Stream a ->  EqC1 a -> ()
+{-@ falseProp :: x:Stream a -> y:Stream a -> Prop (EqC1 x y) -> {false} @-}
+falseProp _ _ (EqRefl1 a x y p)
+  = falseProp x y p
 
-
--- | 3.2 Precise Approach: Indexed Predicates
-
-{-@ reflect eqK @-}
-{-@ eqK :: Eq a => Stream a -> Stream a -> Nat -> Bool @-}
-eqK :: Eq a => Stream a -> Stream a -> Int -> Bool
-eqK _ _ 0 = True
-eqK (x :> xs) (y :> ys) i = x == y && eqK xs ys (i-1)
-
-
-
-{-@ mapFusionIdx :: xs:Stream a -> f:(b -> c) -> g:(a -> b)
-            -> k:Nat -> {v : () | eqK (smap f (smap g xs)) (smap (f . g) xs) k } / [k]@-}
-mapFusionIdx :: Eq c => Stream a -> (b -> c) -> (a -> b) -> Int -> ()
-mapFusionIdx xs f g 0 = eqK (smap f (smap g xs)) (smap (f . g) xs)  0 *** QED
-mapFusionIdx (x :> xs) f g k
-  =   smap f (smap g (x :> xs))
-  === smap f (g x :> smap g xs)
-  === f (g x) :> smap f (smap g xs)
-      ? mapFusionIdx xs f g (k-1)
-  =#=  k #
-      (f . g) x :> smap (f . g) xs
-  === smap (f . g) (x :> xs)
-  *** QED
-
--- | Proof Combinators:
-infix 0 ***
-
-data QED = QED
-_ *** QED = ()
-
-infixr 1 #
-(#) = ($)
-
-infix 2 =#=
-{-@ (=#=) :: Eq a => x:Stream a -> k:{Nat | 0 < k }
-          -> y:{Stream a | eqK (stail x) (stail y) (k-1)  && shead x == shead y }
-          -> {v:Stream a | eqK x y k && v == x } @-}
-(=#=) :: Eq a => Stream a -> Int -> Stream a -> Stream a
-(=#=)  xxs@(x :> xs) k yys@(y :> ys) =
-   xxs ? (eqK xxs yys k === (x == y && eqK xs ys (k-1)) *** QED)
-
--- | 3.3 Take Lemma: Did we prove Equality?
-
--- | HERE
-
-{-@ reflect take @-}
-{-@ take :: Nat -> Stream a -> [a] @-}
-take :: Int -> Stream a -> [a]
-take 0 _ = []
-take i (x :> xs) = x:take (i-1) xs
-
-{-@ assume takeLemma :: x:Stream a -> y:Stream a
-                     -> (n:Nat -> {v:() | take n x = take n y})
-                     -> {x = y} @-}
-takeLemma :: Stream a -> Stream a -> (Int -> ()) -> ()
-takeLemma _ _ _ = ()
+-- | Indices to the rescue.
+data EqC a where
+      EqRefl :: Int -> a -> Stream a -> Stream a
+             -> (Int -> EqC a)
+             -> EqC a
+{-@ data EqC a where
+          EqRefl :: i:Nat -> x:a -> xs:Stream a -> ys:Stream a
+                 -> (j:{j:Nat | j < i} ->  Prop (EqC j xs ys))
+                 -> Prop (EqC i (x :> xs) (x :> ys)) @-}
 
 
-{-@ eqLemma :: x:Stream a -> y:Stream a -> n:Nat
-                     -> {(take n x = take n y) <=> eqK x y n} @-}
-eqLemma :: Eq a => Stream a -> Stream a -> Int -> ()
-eqLemma xs ys 0
-  = eqK xs ys 0 ? take 0 xs ? take 0 ys  *** QED
-eqLemma (x :> xs) (y :> ys) i
-  =   take i (x :> xs) == take i (y :> ys)
-  === (x:take (i-1)xs == y:take (i-1) ys)
-  === (x == y && take (i-1) xs == take (i-1) ys)
-       ? eqLemma xs ys (i-1)
-  === (x == y && eqK xs ys (i-1))
-  === eqK (x :> xs) (y :> ys) i
-  *** QED
+{-@ ignore imposProp@-}
+{-@ ple imposProp@-}
+imposProp :: Int -> Stream a -> Stream a -> EqC a -> ()
+{-@ imposProp :: i:Nat  -> x:Stream a -> y:Stream a
+               -> Prop (EqC i x y) -> {v:() | false}  @-}
+imposProp 0 _ _ _ = ()
+imposProp _ _ _ (EqRefl i a x y p)
+  = imposProp (i-1) x y (p (i-1))
 
+
+
+-- | 4.2 Proof by Constructive Coinduction
+
+{-@ mapFusionC :: f:(b -> c) -> g:(a -> b) -> xs:Stream a
+                  -> i:Nat -> Prop (EqC i (smap f (smap g xs)) (smap (f . g) xs) ) @-}
+mapFusionC :: (Eq c) => (b -> c) -> (a -> b) -> Stream a ->  Int -> EqC c
+mapFusionC f g (x :> xs)  i
+  = EqRefl i ((f . g) x) (smap f (smap g xs)) (smap (f . g) xs) (mapFusionC f g xs)
+  ? (   ((f . g) x) :> (smap (f . g) xs)
+    === smap (f. g) (x :> xs)
+    *** QED
+    )
+  ? (   ((f . g) x) :> (smap f (smap g xs))
+    === (f (g x)) :> (smap f (smap g xs))
+    ===  smap f (g x :> smap g xs)
+    ===  smap f (smap g (x :> xs))
+    *** QED
+    )
+
+
+
+-- | 4.3 Did we prove Equality?
+
+{-@ ple eqCLemma @-}
+eqCLemma :: (Eq a) => Stream a -> Stream a -> Int -> EqC a -> ()
+{-@ eqCLemma :: x:Stream a -> y:Stream a
+                  -> i:Nat -> (Prop (EqC i x y))
+                  ->  {take i x = take i y} @-}
+eqCLemma _x _ 0 _ = ()
+eqCLemma _x _ _i (EqRefl i x xs ys p)
+  = eqCLemma xs ys (i-1) (p (i-1))
+
+approx :: (Eq a) => Stream a -> Stream a -> (Int -> EqC a) -> ()
 {-@ approx :: x:Stream a -> y:Stream a
-           -> (n:Nat -> {v:() | eqK x y n })
-           -> { x = y } @-}
-approx :: Eq a => Stream a -> Stream a -> (Int -> ()) -> ()
-approx xs ys p =  takeLemma xs ys (\n -> (p n ? eqLemma xs ys n))
-
-
+                  -> (i:Nat -> Prop (EqC i x y))
+                  -> { x = y } @-}
+approx x y p = takeLemma x y (\i -> eqCLemma x y i (p i))
 
 {-@ mapFusion :: f:(b -> c) -> g:(a -> b) -> xs:Stream a
             -> { smap f (smap g xs) == smap (f . g) xs } @-}
 mapFusion :: Eq c => (b -> c) -> (a -> b) -> Stream a -> ()
-mapFusion f g xs = approx (smap f (smap g xs)) (smap (f . g) xs) (mapFusionIdx xs f g)
+mapFusion f g xs
+  = approx (smap f (smap g xs)) (smap (f . g) xs) (mapFusionC f g xs)
 
--- | As in Section 2 without boxes
+
+
+
+
+
+
+
+
+
+
+-- | As in Section 2 without boxes or Section 3
 infixr :>
 data Stream a =  a :> Stream a
 
@@ -119,3 +126,14 @@ shead (x :> _ ) = x
 stail (_ :> xs) = xs
 
 
+{-@ reflect take @-}
+{-@ take :: Nat -> Stream a -> [a] @-}
+take :: Int -> Stream a -> [a]
+take 0 _ = []
+take i (x :> xs) = x:take (i-1) xs
+
+
+{-@ assume takeLemma :: x:Stream a -> y:Stream a
+                     -> (n:Nat -> {v:() | take n x = take n y}) -> {x = y} @-}
+takeLemma :: Stream a -> Stream a -> (Int -> ()) -> ()
+takeLemma _ _ _ = ()
