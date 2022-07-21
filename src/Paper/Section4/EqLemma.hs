@@ -4,7 +4,7 @@
 
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE FlexibleContexts #-}
-module Paper.Section5.EqLemma where
+module Paper.Section4.EqLemma where
 
 import Prelude hiding (take, map)
 

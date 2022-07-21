@@ -1,7 +1,7 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--no-adt" @-}
 
-module Paper.Section5.Stream where
+module Paper.Section4.Stream where
 
 import Prelude hiding (not)
 

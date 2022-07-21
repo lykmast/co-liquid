@@ -2,12 +2,12 @@
 {-@ LIQUID "--reflection" @-}
 
 {-# LANGUAGE GADTs #-}
-module Paper.Section5.StreamConstructive where
+module Paper.Section4.StreamConstructive where
 
 import Language.Haskell.Liquid.ProofCombinators hiding (trivial)
 
 import Prelude hiding (not, take)
-import Paper.Section5.Stream
+import Paper.Section4.Stream
 
 {-@ infixr :> @-}
 {-@ infixr . @-}

@@ -1,12 +1,12 @@
 {-@ LIQUID "--no-adt" @-}
 {-@ LIQUID "--reflection" @-}
 
-module Paper.Section5.ListIndexed where
+module Paper.Section4.ListIndexed where
 
 import Language.Haskell.Liquid.ProofCombinators hiding ((***), QED)
 
 import Prelude hiding(map, infinite)
-import Paper.Section5.List
+import Paper.Section4.List
 
 {-@ infixr :| @-}
 {-@ infixr . @-}

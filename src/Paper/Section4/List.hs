@@ -1,6 +1,6 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--no-adt" @-}
-module Paper.Section5.List where
+module Paper.Section4.List where
 
 import Prelude hiding(map, infinite)
 data List a = a :| (List a) | Nil

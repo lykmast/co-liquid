@@ -2,7 +2,7 @@
 {-@ LIQUID "--no-adt" @-}
 {-# LANGUAGE GADTs #-}
 
-module Paper.Section5.Tree where
+module Paper.Section4.Tree where
 
 import Prelude hiding (not)
 import Language.Haskell.Liquid.ProofCombinators

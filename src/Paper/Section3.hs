@@ -4,7 +4,7 @@
 
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE FlexibleContexts #-}
-module Paper.Section4 where
+module Paper.Section3 where
 
 import Prelude hiding (take, map)
 
