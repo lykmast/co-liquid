@@ -5,7 +5,6 @@ module SizedTypes.Stream where
 
 import Prelude hiding (repeat, zipWith, map)
 import Language.Haskell.Liquid.Prelude (liquidAssert)
-import SizedTypes.Size
 
 -- will be hidden.
 data Stream a = a :> Stream a
@@ -13,115 +12,115 @@ infixr 5 :>
 
 {-@ measure inf :: Stream a -> Bool @-}
 
-{-@ measure size :: Stream a -> Size @-}
+{-@ measure size :: Stream a -> Nat @-}
 
 {-@ type StreamS a S = {v:Stream a| size v  = S } @-}
 {-@ type StreamG a S = {v:Stream a| size v >= S || inf v} @-}
 {-@ type StreamI a   = {v:Stream a| inf  v      } @-}
 
-{-@ hd :: s:Size -> {xs:_| s < size xs || inf xs} -> _ @-}
-hd :: Size -> Stream a -> a
-hd i (x :> _) = x
+{-@ shead :: s:Nat -> {xs:_| s < size xs || inf xs} -> _ @-}
+shead :: Int -> Stream a -> a
+shead i (x :> _) = x
 
-{-@ hdi :: StreamI _ -> _ @-}
-hdi :: Stream a -> a
-hdi = hd 0
+{-@ ihead :: StreamI _ -> _ @-}
+ihead :: Stream a -> a
+ihead = shead 0
 
-{-@ tli :: StreamI _ -> StreamI _ @-}
-tli :: Stream a -> Stream a
-tli = tl 0
+{-@ itail :: StreamI _ -> StreamI _ @-}
+itail :: Stream a -> Stream a
+itail = stail 0
 
-{-@ assume tl :: s:Size
+{-@ assume stail :: s:Nat
               -> {xs: Stream a| s < size xs || inf xs}
               -> {v: Stream a| (size v = s) && (inf xs ==> inf v)} @-}
-tl :: Size -> Stream a -> Stream a
-tl _ (_ :> xs) = xs
+stail :: Int -> Stream a -> Stream a
+stail _ (_ :> xs) = xs
 
-{-@ assume mkStream :: {i:Size | i>=0}
-                    -> ({j:Size|j<i} -> a)
-                    -> ({j:Size|j<i} -> StreamG a j)
+{-@ assume cons :: {i:Nat | i>=0}
+                    -> ({j:Nat|j<i} -> a)
+                    -> ({j:Nat|j<i} -> StreamG a j)
                     -> {v:Stream a|size v = i}
 @-}
-mkStream :: Size -> (Size -> a) -> (Size -> Stream a) -> Stream a
-mkStream _ fx fxs = fx 0 :> fxs 0
+cons :: Int -> (Int -> a) -> (Int -> Stream a) -> Stream a
+cons _ fx fxs = fx 0 :> fxs 0
 
-{-@ assume toInf :: (i:Size -> StreamG _ i) -> StreamI _ @-}
-toInf :: (Size -> Stream a) -> Stream a
+{-@ assume toInf :: (i:Nat -> StreamG _ i) -> StreamI _ @-}
+toInf :: (Int -> Stream a) -> Stream a
 toInf f = f 0
 
 {-@ lazy bad @-}
 {-@ bad :: _ -> {v:_ | True == False} @-}
 bad x = x :> bad (x+1)
 
-{-@ repeat :: i:Size -> _ -> StreamG _ i @-}
-repeat i x = mkStream i (const x) (\j -> repeat j x)
+{-@ repeat :: i:Nat -> _ -> StreamG _ i @-}
+repeat i x = cons i (const x) (\j -> repeat j x)
 
-{-@ zipWith :: i:Size -> _
+{-@ zipWith :: i:Nat -> _
             -> StreamG _ i
             -> StreamG _ i
             -> StreamG _ i
 @-}
-zipWith :: Size -> (a -> a -> a) -> Stream a -> Stream a -> Stream a
-zipWith i f xs ys = mkStream i
-                      (\j -> hd j xs `f` hd j ys)
-                      $ \j -> zipWith j f (tl j xs) (tl j ys)
+zipWith :: Int -> (a -> a -> a) -> Stream a -> Stream a -> Stream a
+zipWith i f xs ys = cons i
+                      (\j -> shead j xs `f` shead j ys)
+                      $ \j -> zipWith j f (stail j xs) (stail j ys)
 
-{-@ fib :: i:Size -> StreamG _ i @-}
-fib :: Num a => Size -> Stream a
-fib i = mkStream i (const 0)
-          $ \j -> mkStream j (const 1)
-          $ \k -> zipWith k (+) (fib k) (tl k (fib j))
+{-@ fib :: i:Nat -> StreamG _ i @-}
+fib :: Num a => Int -> Stream a
+fib i = cons i (const 0)
+          $ \j -> cons j (const 1)
+          $ \k -> zipWith k (+) (fib k) (stail k (fib j))
 
 -- The definition below is wrong and it (correctly) does not typecheck
 --  unless we use fail.
 {-@ fail zipWith' @-}
-{-@ zipWith' :: i:Size -> _
+{-@ zipWith' :: i:Nat -> _
              -> StreamG _ i
              -> StreamG _ i
              -> StreamG _ i
 @-}
-zipWith' :: Size -> (a -> a -> a) -> Stream a -> Stream a -> Stream a
-zipWith' i f xs ys = mkStream i
-                       (\j ->    (hd j (tl j xs))
-                              `f` hd j (tl j ys))
-                       $ \j -> zipWith j f (tl j xs) (tl j ys)
+zipWith' :: Int -> (a -> a -> a) -> Stream a -> Stream a -> Stream a
+zipWith' i f xs ys = cons i
+                       (\j ->    (shead j (stail j xs))
+                              `f` shead j (stail j ys))
+                       $ \j -> zipWith j f (stail j xs) (stail j ys)
 
-{-@ odds :: i:Size -> StreamI _ -> StreamG _ i @-}
-odds :: Size -> Stream a -> Stream a
-odds i xs = mkStream i (const $ hdi xs) (\j -> odds j $ tli . tli $ xs)
+{-@ odds :: i:Nat -> StreamI _ -> StreamG _ i @-}
+odds :: Int -> Stream a -> Stream a
+odds i xs = cons i (const $ ihead xs) (\j -> odds j $ itail . itail $ xs)
 
-{-@ evens :: i:Size -> StreamI _ -> StreamG _ i @-}
-evens :: Size -> Stream a -> Stream a
-evens i = odds i . tli
-
-
-{-@ merge :: i:Size -> StreamG _ i -> StreamG _ i -> StreamG _ i @-}
-merge :: Size -> Stream a -> Stream a -> Stream a
-merge i xs ys = mkStream i (\j -> hd j xs) (\j -> merge j ys (tl j xs))
+{-@ evens :: i:Nat -> StreamI _ -> StreamG _ i @-}
+evens :: Int -> Stream a -> Stream a
+evens i = odds i . itail
 
 
-{-@ toggle :: i:Size -> StreamG _ i @-}
-toggle :: Num a => Size -> Stream a
-toggle i = mkStream i (const 0) $ \j ->
-           mkStream j (const 1) toggle
+{-@ merge :: i:Nat -> StreamG _ i -> StreamG _ i -> StreamG _ i @-}
+merge :: Int -> Stream a -> Stream a -> Stream a
+merge i xs ys = cons i (\j -> shead j xs) (\j -> merge j ys (stail j xs))
+
+
+{-@ toggle :: i:Nat -> StreamG _ i @-}
+toggle :: Num a => Int -> Stream a
+toggle i = cons i (const 0) $ \j ->
+           cons j (const 1) toggle
 
 
 -- In paperfolds one unfolding of merge is necessary
 --    to prove termination of paperfolds.
 -- The original definition is
 -- paperfolds = merge toggle paperfolds
-{-@ paperfolds :: i:Size -> StreamG _ i @-}
-paperfolds :: Num a =>  Size -> Stream a
-paperfolds i = mkStream i (\j -> hdi (toInf toggle)) $
-                           \j -> merge j (paperfolds j) (tli (toInf toggle))
+{-@ paperfolds :: i:Nat -> StreamG _ i @-}
+paperfolds :: Num a =>  Int -> Stream a
+paperfolds i = cons i (\j -> ihead (toInf toggle)) $
+                           \j -> merge j (paperfolds j) (itail (toInf toggle))
 
-{-@ fivesUp :: i:Size -> n:_
+{-@ fivesUp :: i:Nat -> n:_
             -> StreamG {v:_ | v >= n} i / [i, fivesUpTerm n]
 @-}
-fivesUp :: Size -> Int -> Stream Int
+fivesUp :: Int -> Int -> Stream Int
 -- the first clause has i<j (guarded by coinductive constructor)
 fivesUp i n | n `mod` 5 == 0
-            = mkStream i (const n) $ \j -> fivesUp j (n+1)
+            = cons i (const n) $ \j -> fivesUp j (n+1)
 -- the second clause has decreasing fivesUpTerm n.
             | otherwise = fivesUp i (n+1)
 
