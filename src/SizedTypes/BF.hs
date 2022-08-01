@@ -12,10 +12,10 @@ data Tree a = Node {_label :: a, _left :: Tree a, _right :: Tree a}
 
 {-@ measure tsize :: Tree a -> Nat @-}
 -- Infinitely deep defined trees are not used here, but I keep
---   tinf and ITree for the sake of completeness.
+--   tinf and TreeI for the sake of completeness.
 {-@ measure tinf  :: Tree a -> Bool @-}
-{-@ type STree a S = {v:Tree a | tsize v >= S} @-}
-{-@ type ITree a   = {v:Tree a | tinf v} @-}
+{-@ type TreeG a S = {v:Tree a | tsize v >= S} @-}
+{-@ type TreeI a   = {v:Tree a | tinf v} @-}
 
 {-@ label :: j:Nat -> {t:_ | tsize t > j || tinf t} -> _ @-}
 label :: Int -> Tree a -> a
@@ -36,32 +36,32 @@ right :: Int -> Tree a -> Tree a
 right _ = _right
 
 
-{-@ ilabel :: ITree _ -> _ @-}
+{-@ ilabel :: TreeI _ -> _ @-}
 ilabel = label 0
 
-{-@ ileft :: ITree _ -> _ @-}
+{-@ ileft :: TreeI _ -> _ @-}
 ileft = left 0
 
-{-@ iright :: ITree _ -> _ @-}
+{-@ iright :: TreeI _ -> _ @-}
 iright = right 0
 
 
-{-@ assume mkTree :: i:Nat
+{-@ assume node :: i:Nat
                   -> ({j:Nat|j<i} -> _)
-                  -> ({j:Nat|j<i} -> STree _ j)
-                  -> ({j:Nat|j<i} -> STree _ j)
+                  -> ({j:Nat|j<i} -> TreeG _ j)
+                  -> ({j:Nat|j<i} -> TreeG _ j)
                   -> {v:_ | tsize v = i}
 @-}
-mkTree :: Int
+node :: Int
        -> (Int -> a)
        -> (Int -> Tree a)
        -> (Int -> Tree a)
        -> Tree a
-mkTree i flb fl fr = Node (flb 0) (fl 0) (fr 0)
+node i flb fl fr = Node (flb 0) (fl 0) (fr 0)
 
-{-@ assume mkITree :: _ -> ITree _ -> ITree _ -> ITree _ @-}
-mkITree :: a -> Tree a -> Tree a -> Tree a
-mkITree = Node
+{-@ assume nodeI :: _ -> TreeI _ -> TreeI _ -> TreeI _ @-}
+nodeI :: a -> Tree a -> Tree a -> Tree a
+nodeI = Node
 
 
 data Result a = Res {_tree:: Tree a, _rest:: SS a}
@@ -71,13 +71,13 @@ data Result a = Res {_tree:: Tree a, _rest:: SS a}
 
 {-@ type ResultI a I = {r:Result a | rsize r = I} @-}
 
-{-@ assume  mkRes :: i:Nat -> STree _ i
+{-@ assume  res :: i:Nat -> TreeG _ i
                   -> SS _ i -> ResultI _ i @-}
-mkRes :: Int -> Tree a -> SS a -> Result a
-mkRes _ t ss = Res t ss
+res :: Int -> Tree a -> SS a -> Result a
+res _ t ss = Res t ss
 
 
-{-@ assume tree :: r:_ -> STree _ {rsize r} @-}
+{-@ assume tree :: r:_ -> TreeG _ {rsize r} @-}
 tree = _tree
 {-@ assume rest :: r:_ -> SS   _ {rsize r} @-}
 rest = _rest
@@ -90,7 +90,7 @@ rest = _rest
 
 
 {-@ bfs :: i:Nat -> SS _ i -> ResultI _ i @-}
-bfs i ss = mkRes i (mkTree i v (\j -> tree $ p1 j)
+bfs i ss = res i (node i v (\j -> tree $ p1 j)
                              $  \j -> tree $ p2 j)
                  $  cons i vs $ \j -> rest (p2 j)
 
@@ -107,7 +107,7 @@ bfs i ss = mkRes i (mkTree i v (\j -> tree $ p1 j)
 --   is not a j < i for bfp to recurse with. We on the other hand do
 --   not have this problem because the cons constructor provides
 --   a j<i.
-{-@ bf :: i:Nat -> StreamI _ -> STree _ i @-}
+{-@ bf :: i:Nat -> StreamI _ -> TreeG _ i @-}
 bf i = tree . bfp i
   where {-@ bfp :: i:Nat -> StreamI a -> ResultI a i @-}
         bfp i vs = bfs i $ cons i (const vs) $ \j -> rest (bfp j vs)
@@ -117,7 +117,7 @@ bf i = tree . bfp i
 --   found in the paper.
 {-@ bfp' :: i:Nat -> StreamI _ -> ResultI _ i @-}
 bfp' :: Int -> Stream a -> Result a
-bfp' i vs = mkRes i (mkTree i  (\j -> label j $ t j)
+bfp' i vs = res i (node i  (\j -> label j $ t j)
                               (\j -> left  j $ t j)
                               (\j -> right j $ t j))
 
@@ -135,7 +135,7 @@ bfp' i vs = mkRes i (mkTree i  (\j -> label j $ t j)
          -> ResultI _ i
 @-}
 fixR :: Int -> (Int -> Result a -> Result a) -> Result a
-fixR i f =  mkRes i (mkTree i  (\j -> label j $ t j)
+fixR i f =  res i (node i  (\j -> label j $ t j)
                                (\j -> left  j $ t j)
                                (\j -> right j $ t j))
 
