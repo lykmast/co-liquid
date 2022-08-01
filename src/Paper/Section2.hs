@@ -2,7 +2,7 @@
 {-@ LIQUID "--no-structural-termination" @-}
 {-@ LIQUID "--no-adt" @-}
 
-module Paper.Section2 where
+module Paper.Section3 where
 
 import Prelude hiding (take, map)
 

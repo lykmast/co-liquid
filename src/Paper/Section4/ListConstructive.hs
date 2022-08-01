@@ -2,12 +2,12 @@
 {-@ LIQUID "--reflection" @-}
 
 {-# LANGUAGE GADTs #-}
-module Paper.Section4.ListConstructive where
+module Paper.Section5.ListConstructive where
 
 import Prelude hiding(map, infinite)
 import Language.Haskell.Liquid.ProofCombinators
 
-import Paper.Section4.List
+import Paper.Section5.List
 
 {-@ infixr :| @-}
 {-@ infixr . @-}

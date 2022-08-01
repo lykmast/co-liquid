@@ -1,7 +1,7 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
 
-module Paper.Section1 where
+module Paper.Section2 where
 
 import Language.Haskell.Liquid.ProofCombinators
 

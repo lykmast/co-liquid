@@ -15,17 +15,17 @@ extra-source-files:
 library
   exposed-modules:
       LList
-      Paper.Section1
       Paper.Section2
       Paper.Section3
-      Paper.Section4.EqLemma
-      Paper.Section4.List
-      Paper.Section4.ListConstructive
-      Paper.Section4.ListIndexed
-      Paper.Section4.Stream
-      Paper.Section4.StreamConstructive
-      Paper.Section4.StreamIndexed
-      Paper.Section4.Tree
+      Paper.Section4
+      Paper.Section5.EqLemma
+      Paper.Section5.List
+      Paper.Section5.ListConstructive
+      Paper.Section5.ListIndexed
+      Paper.Section5.Stream
+      Paper.Section5.StreamConstructive
+      Paper.Section5.StreamIndexed
+      Paper.Section5.Tree
       Paulson
       SizedTypes.BF
       SizedTypes.CoList
