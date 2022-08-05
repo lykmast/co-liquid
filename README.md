@@ -1,5 +1,5 @@
 # Coinduction Inductively
-Auxiliary code for **_Coinduction Inductively - Mechanizing Coinductive Proofs in Liquid Haskell_**.
+Auxiliary code for the Haskell'22 paper **_Coinduction Inductively - Mechanizing Coinductive Proofs in Liquid Haskell_**.
 
 Code is located in `src`:
 - `Stream.hs` - Stream functions.
