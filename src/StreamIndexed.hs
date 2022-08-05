@@ -1,13 +1,13 @@
 {-@ LIQUID "--no-adt" @-}
 {-@ LIQUID "--reflection" @-}
 
-module Paper.Section5.StreamIndexed where
+module StreamIndexed where
 
 import Language.Haskell.Liquid.ProofCombinators
        hiding ((***), QED, trivial)
 
 import Prelude hiding (not, take)
-import Paper.Section5.Stream
+import Stream
 
 {-@ infixr :> @-}
 {-@ infixr . @-}
