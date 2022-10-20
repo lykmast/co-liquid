@@ -3,7 +3,7 @@
 
 This repository contains encodings of coinductive features in Liquid Haskell. Namely:
   - **Co-inductive proofs**, as explained in [Coinduction Inductively: Mechanizing Coinductive Proofs in Liquid Haskell](https://nikivazou.github.io/static/Haskell22/coinduction.pdf). The code relevant to the paper is located in [src/Paper](src/Paper).
-  - **Checks for productivity of corecursive functions**, which are discussed in my thesis (TBD).
+  - **Checks for productivity of corecursive functions**, which are discussed in [my thesis](http://artemis.cslab.ece.ntua.gr:8080/jspui/bitstream/123456789/18427/1/thesis.pdf).
 
 <!--
 This implementation is *heavily* inspired by the respective implementations of Coinduction in Dafny and Agda. What follows is a summary of those two approaches, along with the elements we adopt, and a small [comparison](#comparison-of-the-two-approaches).
