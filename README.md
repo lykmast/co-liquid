@@ -2,7 +2,7 @@
 >Coinduction in Liquid Haskell
 
 This repository contains encodings of coinductive features in Liquid Haskell. Namely:
-  - **Co-inductive proofs**, as explained in [Coinduction Inductively: Mechanizing Coinductive Proofs in Liquid Haskell](https://nikivazou.github.io/static/Haskell22/coinduction.pdf). The code relevant to the paper is located in [src/Paper](src/Paper).
+  - **Co-inductive proofs**, as explained in [Coinduction Inductively: Mechanizing Coinductive Proofs in Liquid Haskell](https://nikivazou.github.io/static/Haskell22/coinduction.pdf). The code relevant to the paper is located in branch [haskell22](https://github.com/lykmast/co-liquid/tree/haskell22) and also in [src/Paper](src/Paper).
   - **Checks for productivity of corecursive functions**, which are discussed in [my thesis](http://artemis.cslab.ece.ntua.gr:8080/jspui/bitstream/123456789/18427/1/thesis.pdf).
 
 <!--
